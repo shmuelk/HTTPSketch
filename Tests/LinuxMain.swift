@@ -3,4 +3,5 @@ import XCTest
 
 XCTMain([
     testCase(K2SpikeTests.allTests),
+    testCase(KituraNet2Tests.allTests),
 ])

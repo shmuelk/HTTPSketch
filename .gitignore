@@ -1,4 +1,7 @@
-.DS_Store
-/.build
-/Packages
+.build
+build
+.vagrant
+Packages
+*.pkg
 /*.xcodeproj
+*.DS_Store
