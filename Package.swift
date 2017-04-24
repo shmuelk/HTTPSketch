@@ -5,6 +5,7 @@ import PackageDescription
 let package = Package(
     name: "K2Spike"
     dependencies: [
+        .Package(url: "https://github.ibm.com/navneet/CHTTPParser.git", majorVersion: 0, minor: 1),
         .Package(url: "https://github.com/IBM-Swift/LoggerAPI.git", majorVersion: 1, minor: 7),
         .Package(url: "https://github.com/IBM-Swift/BlueSocket.git", majorVersion: 0, minor: 12),
         .Package(url: "https://github.com/IBM-Swift/CCurl.git", majorVersion: 0, minor: 2),

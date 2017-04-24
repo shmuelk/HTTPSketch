@@ -15,6 +15,7 @@
  */
 
 import Dispatch
+import Foundation
 
 import LoggerAPI
 import Socket
@@ -272,25 +273,16 @@ public class HTTPServer: Server {
     /// at least one ConnectionUpgradeFactory. This `ServerDelegate` will simply return 404 for
     /// any requests it is asked to process.
     private class HTTPDummyServerDelegate: ServerDelegate {
-        /// Handle new incoming requests to the server
-        ///
-        /// - Parameter request: The ServerRequest class instance for working with this request.
-        ///                     The ServerRequest object enables you to get the query parameters, headers, and body amongst other
-        ///                     information about the incoming request.
-        /// - Parameter response: The ServerResponse class instance for working with this request.
-        ///                     The ServerResponse object enables you to build and send your response to the client who sent
-        ///                     the request. This includes headers, the body, and the response code.
-        func handle(request: ServerRequest, response: ServerResponse){
-            do {
-                response.statusCode = .notFound
-                let theBody = "Path not found"
-                response.headers["Content-Type"] = ["text/plain"]
-                response.headers["Content-Length"] = [String(theBody.lengthOfBytes(using: .utf8))]
-                try response.write(from: theBody)
-                try response.end()
-            }
-            catch {
-                Log.error("Failed to send the response. Error = \(error)")
+        func serve(req: HTTPRequest, res: HTTPResponseWriter) -> HTTPBodyProcessing {
+            res.writeResponse(HTTPResponse(httpVersion: req.httpVersion,
+                                           status: .notFound,
+                                           transferEncoding: .chunked,
+                                           headers: HTTPHeaders([("Content-Type", "text/plain")])))
+
+            return .processBody { (chunk, stop) in
+                res.writeBody(data: "Path not found".data(using: String.Encoding.utf8)!)
+                stop = true
+                res.done()
             }
         }
     }

@@ -43,13 +43,13 @@ public struct ConnectionUpgrader {
     static func clear() {
         ConnectionUpgrader.instance.registry.removeAll()
     }
-    
+    /*
     /// The function that performs the upgrade.
     ///
     /// - Parameter handler: The `IncomingSocketHandler` that is handling the connection being upgraded.
     /// - Parameter request: The `ServerRequest` object of the incoming "upgrade" request.
     /// - Parameter response: The `ServerResponse` object that will be used to send the response of the "upgrade" request.
-    func upgradeConnection(handler: IncomingSocketHandler, request: ServerRequest, response: ServerResponse) {
+    func upgradeConnection(handler: IncomingSocketHandler, req: HTTPRequest, res: HTTPResponseWriter) {
         guard let protocols = request.headers["Upgrade"] else {
             do {
                 response.statusCode = HTTPStatusCode.badRequest
@@ -108,4 +108,5 @@ public struct ConnectionUpgrader {
             Log.error("Failed to send response to Upgrade request")
         }
     }
+ */
 }

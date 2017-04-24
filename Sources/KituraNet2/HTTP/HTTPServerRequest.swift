@@ -22,7 +22,7 @@ import LoggerAPI
 
 /// This class implements the `ServerRequest` protocol for incoming sockets that
 /// are communicating via the HTTP protocol. 
-public class HTTPServerRequest: ServerRequest {
+public class HTTPServerRequestDEL {
     
     /// HTTP Status code if this message is a response
     @available(*, deprecated, message:

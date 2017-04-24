@@ -243,7 +243,7 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
             DispatchQueue.global().async() { [weak self] in
                 if let strongSelf = self, let strongRequest = weakRequest {
                     Monitor.delegate?.started(request: strongRequest, response: response)
-                    strongSelf.delegate?.handle(request: strongRequest, response: response)
+                    strongSelf.delegate?.serve(req: strongRequest, res: httpResponseWriter)
                 }
             }
         }

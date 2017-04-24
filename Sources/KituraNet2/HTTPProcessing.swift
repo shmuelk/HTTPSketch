@@ -18,6 +18,22 @@ public struct HTTPResponse {
     public var headers: HTTPHeaders
 }
 
+public enum Result<POSIXError, Void> {
+    case success(())
+    case failure(POSIXError)
+
+    // MARK: Constructors
+    /// Constructs a success wrapping a `closure`.
+    public init(value: ()) {
+        self = .success(value)
+    }
+
+    /// Constructs a failure wrapping an `POSIXError`.
+    public init(error: POSIXError) {
+        self = .failure(error)
+    }
+}
+
 public protocol HTTPResponseWriter : class {
     func writeContinue(headers: HTTPHeaders?) /* to send an HTTP `100 Continue` */
 
@@ -27,11 +43,11 @@ public protocol HTTPResponseWriter : class {
 
     func writeBody(data: DispatchData) /* convenience */
     func writeBody(data: Data) /* convenience */
-    func writeBody(data: DispatchData, completion: @escaping (POSIXError?) -> Void) /*Result<POSIXError, ()>*/
-    func writeBody(data: Data, completion: @escaping (POSIXError?) -> Void) /*Result<POSIXError, ()>*/
+    func writeBody(data: DispatchData, completion: @escaping (Result<POSIXError, ()>) -> Void)
+    func writeBody(data: Data, completion: @escaping (Result<POSIXError, ()>) -> Void)
 
     func done() /* convenience */
-    func done(completion: @escaping (POSIXError?) -> Void) /*Result<POSIXError, ()>*/
+    func done(completion: @escaping (Result<POSIXError, ()>) -> Void)
     func abort()
 }
 

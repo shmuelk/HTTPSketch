@@ -34,5 +34,5 @@ public protocol ConnectionUpgradeFactory {
     ///
     /// - Note: The `ConnectionUpgradeFactory` instance doesn't need to work with the `ServerResponse` unless it
     ///        needs to add special headers to the response.
-    func upgrade(handler: IncomingSocketHandler, request: ServerRequest, response: ServerResponse) -> (IncomingSocketProcessor?, String?)
+    func upgrade(handler: IncomingSocketHandler, req: HTTPRequest, res: HTTPResponseWriter) -> (IncomingSocketProcessor?, String?)
 }

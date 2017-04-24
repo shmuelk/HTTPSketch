@@ -22,13 +22,13 @@ public protocol ServerMonitor {
     ///
     /// - Parameter request: The `ServerRequest` class instance for the request starting.
     /// - Parameter response: The `ServerResponse` class instance for the request starting.
-    func started(request: ServerRequest, response: ServerResponse)
+    func started(req: HTTPRequest, res: HTTPResponseWriter)
     
     /// An event fired when the processing of a HTTP request has finished.
     ///
     /// - Parameter request: The `ServerRequest` class instance for the request that finished.
     /// - Parameter response: The `ServerResponse` class instance for the request  that finished.
-    func finished(request: ServerRequest?, response: ServerResponse)
+    func finished(req: HTTPRequest, res: HTTPResponseWriter)
 }
 
 /// A struct that holds the reference to the server wide monitoring delegate.

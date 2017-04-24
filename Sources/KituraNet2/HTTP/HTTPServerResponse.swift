@@ -20,7 +20,7 @@ import Foundation
 
 /// This class implements the `ServerResponse` protocol for outgoing server
 /// responses via the HTTP protocol.
-public class HTTPServerResponse : ServerResponse {
+public class HTTPServerResponseDEL {
 
     /// Size of buffer
     private static let bufferSize = 2000
@@ -40,7 +40,7 @@ public class HTTPServerResponse : ServerResponse {
     /// Corresponding socket processor
     private weak var processor : IncomingHTTPSocketProcessor?
     
-    let request: HTTPServerRequest?
+    let request: HTTPServerRequestDEL?
 
     /// HTTP status code of the response.
     public var statusCode: HTTPStatusCode? {
@@ -55,9 +55,9 @@ public class HTTPServerResponse : ServerResponse {
     }
 
     /// Initializes a HTTPServerResponse instance
-    init(processor: IncomingHTTPSocketProcessor, request: HTTPServerRequest?) {
+    init(processor: IncomingHTTPSocketProcessor, request: HTTPServerRequestDEL?) {
         self.processor = processor
-        buffer = NSMutableData(capacity: HTTPServerResponse.bufferSize) ?? NSMutableData()
+        buffer = NSMutableData(capacity: HTTPServerResponseDEL.bufferSize) ?? NSMutableData()
         headers["Date"] = [SPIUtils.httpDate()]
         self.request = request
     }
@@ -78,11 +78,11 @@ public class HTTPServerResponse : ServerResponse {
     public func write(from data: Data) throws {
         if  let processor = processor {
             try flushStart()
-            if  buffer.length + data.count > HTTPServerResponse.bufferSize  &&  buffer.length != 0  {
+            if  buffer.length + data.count > HTTPServerResponseDEL.bufferSize  &&  buffer.length != 0  {
                 processor.write(from: buffer)
                 buffer.length = 0
             }
-            if  data.count > HTTPServerResponse.bufferSize {
+            if  data.count > HTTPServerResponseDEL.bufferSize {
                 let dataToWrite = NSData(data: data)
                 processor.write(from: dataToWrite)
             }
@@ -122,7 +122,7 @@ public class HTTPServerResponse : ServerResponse {
                 processor.close()
             }
             if let request = request {
-                Monitor.delegate?.finished(request: request, response: self)
+                //Monitor.delegate?.finished(request: request, response: self)
             }
         }
     }
@@ -190,11 +190,11 @@ public class HTTPServerResponse : ServerResponse {
             return
         }
         
-        if  buffer.length + utf8.count > HTTPServerResponse.bufferSize  &&  buffer.length != 0  {
+        if  buffer.length + utf8.count > HTTPServerResponseDEL.bufferSize  &&  buffer.length != 0  {
             processor.write(from: buffer)
             buffer.length = 0
         }
-        if  utf8.count > HTTPServerResponse.bufferSize {
+        if  utf8.count > HTTPServerResponseDEL.bufferSize {
             processor.write(from: utf8, length: utf8Length)
         }
         else {
