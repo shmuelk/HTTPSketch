@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Dispatch
 
 public struct HTTPRequest {
     public var method : HTTPMethod
