@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Dispatch
 import K2Spike
 
 class TestResponseResolver: HTTPResponseWriter {
