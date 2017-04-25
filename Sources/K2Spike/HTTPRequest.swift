@@ -23,7 +23,7 @@ public enum HTTPBodyProcessing {
 }
 
 public enum HTTPBodyChunk {
-    case chunk(data: /*Dispatch*/ Data, finishedProcessing: () -> Void) /* a new bit of the HTTP request body has arrived, finishedProcessing() must be called when done with that chunk */
+    case chunk(data: DispatchData, finishedProcessing: () -> Void) /* a new bit of the HTTP request body has arrived, finishedProcessing() must be called when done with that chunk */
     case failed(error: /*HTTPParser*/ Error) /* error while streaming the HTTP request body, eg. connection closed */
     case trailer(key: String, value: String) /* trailer has arrived (this we actually haven't implemented yet) */
     case end /* body and trailers finished */
