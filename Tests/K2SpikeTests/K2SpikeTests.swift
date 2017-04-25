@@ -6,19 +6,7 @@ class K2SpikeTests: XCTestCase {
         let request = HTTPRequest(method: .GET, target:"/echo", httpVersion: (1, 1), headers: HTTPHeaders([("X-foo", "bar")]))
         let resolver = TestResponseResolver(request: request, requestBody: Data())
         let creator = ResponseCreator()
-        let chunkHandler = creator.serve(req: resolver.request, res: resolver)
-        var stop=false
-        var finished=false
-        while !stop && !finished {
-            switch chunkHandler {
-            case .processBody(let handler):
-                    handler(.chunk(data: resolver.requestBody, finishedProcessing: {
-                        finished=true
-                    }), &stop)
-            case .discardBody:
-                finished=true
-            }
-        }
+        resolver.resolveHandler(creator.serve)
         XCTAssertNotNil(resolver.response)
         XCTAssertNotNil(resolver.responseBody)
         XCTAssertEqual(HTTPResponseStatus.ok.rawValue, resolver.response?.status.rawValue ?? 0)
@@ -29,19 +17,7 @@ class K2SpikeTests: XCTestCase {
         let request = HTTPRequest(method: .GET, target:"/echo", httpVersion: (1, 1), headers: HTTPHeaders([("X-foo", "bar")]))
         let resolver = TestResponseResolver(request: request, requestBody: testString.data(using: .utf8)!)
         let creator = ResponseCreator()
-        let chunkHandler = creator.serve(req: resolver.request, res: resolver)
-        var stop=false
-        var finished=false
-        while !stop && !finished {
-            switch chunkHandler {
-            case .processBody(let handler):
-                handler(.chunk(data: resolver.requestBody, finishedProcessing: {
-                    finished=true
-                }), &stop)
-            case .discardBody:
-                finished=true
-            }
-        }
+        resolver.resolveHandler(creator.serve)
         XCTAssertNotNil(resolver.response)
         XCTAssertNotNil(resolver.responseBody)
         XCTAssertEqual(HTTPResponseStatus.ok.rawValue, resolver.response?.status.rawValue ?? 0)

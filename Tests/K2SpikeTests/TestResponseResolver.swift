@@ -12,7 +12,7 @@ import K2Spike
 
 class TestResponseResolver: HTTPResponseWriter {
     let request: HTTPRequest
-    let requestBody: Data
+    let requestBody: DispatchData
     
     var response: HTTPResponse?
     var responseBody: Data?
@@ -20,7 +20,25 @@ class TestResponseResolver: HTTPResponseWriter {
     
     init(request: HTTPRequest, requestBody: Data) {
         self.request = request
-        self.requestBody = requestBody
+        self.requestBody = requestBody.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) -> DispatchData in
+            DispatchData(bytes: UnsafeBufferPointer<UInt8>(start: ptr, count: requestBody.count))
+        }
+    }
+    
+    func resolveHandler(_ handler:WebApp) {
+        let chunkHandler = handler(request, self)
+        var stop=false
+        var finished=false
+        while !stop && !finished {
+            switch chunkHandler {
+            case .processBody(let handler):
+                handler(.chunk(data: self.requestBody, finishedProcessing: {
+                    finished=true
+                }), &stop)
+            case .discardBody:
+                finished=true
+            }
+        }
     }
     
     func writeContinue(headers: HTTPHeaders?) /* to send an HTTP `100 Continue` */ {
@@ -36,15 +54,20 @@ class TestResponseResolver: HTTPResponseWriter {
     }
     
     func writeBody(data: DispatchData, completion: @escaping (Result<POSIXError, ()>) -> Void) {
-        fatalError("Not implemented")
+        self.responseBody = Data(data)
+        /*self.responseBody = data.withUnsafeBytes<UInt8, Data> { (ptr: UnsafePointer<UInt8>) -> Data in
+            Data(bytes: ptr, count: requestBody.count)
+        }
+ */
+        completion(Result(completion: ()))
     }
     func writeBody(data: DispatchData) /* convenience */ {
-        fatalError("Not implemented")
+        writeBody(data: data) { _ in
+            
+        }
     }
     
     func writeBody(data: Data, completion: @escaping (Result<POSIXError, ()>) -> Void) {
-        self.responseBody = data
-        completion(Result(completion: ()))
     }
     
     func writeBody(data: Data) /* convenience */ {
