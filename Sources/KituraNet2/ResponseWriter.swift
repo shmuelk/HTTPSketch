@@ -6,15 +6,14 @@ class ResponseWriter: HTTPResponseWriter {
 
     let httpParser: HTTPParser
     let request: HTTPRequest
-    var requestBodyChunk: Data
+    let socketHandler: IncomingSocketHandler
+    var requestBodyBuffer: Data
 
-    var response: HTTPResponse?
-    var responseBody: Data?
-
-    init(httpParser: HTTPParser, request: HTTPRequest, requestBody: Data) {
+    init(httpParser: HTTPParser, request: HTTPRequest, socketHandler: IncomingSocketHandler) {
         self.httpParser = httpParser
         self.request = request
-        self.requestBodyChunk = Data(capacity: ResponseWriter.bufferSize)
+        self.socketHandler = socketHandler
+        self.requestBodyBuffer = Data(capacity: ResponseWriter.bufferSize)
     }
 
     func resolveHandler(_ handler:WebApp) {
@@ -23,11 +22,11 @@ class ResponseWriter: HTTPResponseWriter {
         while !stop {
             switch chunkHandler {
             case .processBody(let handler):
-                let count = httpParser.bodyChunk.fill(data: &requestBodyChunk)
-                let dispatchData = requestBodyChunk.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) -> DispatchData in
+                let count = httpParser.bodyChunk.fill(data: &requestBodyBuffer)
+                let data = requestBodyBuffer.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) -> DispatchData in
                     DispatchData(bytes: UnsafeBufferPointer<UInt8>(start: ptr, count: count))
                 }
-                handler(.chunk(data: dispatchData, finishedProcessing: { }), &stop)
+                handler(.chunk(data: data, finishedProcessing: { }), &stop)
             case .discardBody:
                 stop=true
             }

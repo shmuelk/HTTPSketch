@@ -199,13 +199,17 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
         
         guard  parsingStatus.error == nil  else  {
             Log.error("Failed to parse a request. \(parsingStatus.error!)")
-            let response = HTTPServerResponse(processor: self, request: nil)
-            response.statusCode = .badRequest
-            do {
-                try response.end()
+            guard let handler = handler else {
+                Log.error("IncomingSocketHandler not set or freed before parsing complete")
+                return
             }
-            catch {}
 
+            let request = getHTTPRequest()
+            let responseWriter = ResponseWriter(httpParser: httpParser, request: request, socketHandler: handler)
+            responseWriter.writeResponse(HTTPResponse(httpVersion: request.httpVersion,
+                                           status: .badRequest,
+                                           transferEncoding: .identity(contentLength: 0), headers: HTTPHeaders()))
+            responseWriter.done()
             return
         }
         
@@ -225,37 +229,34 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
         }
     }
 
-    /// Parsing headers has completed. Invoke the ServerDelegate to handle the request
-    private func headersComplete() {
+    private func getHTTPRequest() -> HTTPRequest {
         let method =  HTTPMethod(rawValue: httpParser.method) ?? HTTPMethod.UNKNOWN
         let target = httpParser.urlString
         let httpVersion = (Int(httpParser.httpVersionMajor), Int(httpParser.httpVersionMinor))
         let headers = httpParser.headers
+        return HTTPRequest(method: method, target: target, httpVersion: httpVersion, headers: headers)
+    }
 
-        let request = HTTPRequest(method: method, target: target, httpVersion: httpVersion, headers: headers)
-
-        let response = HTTPServerResponse(processor: self, request: request)
-
+    /// Parsing headers has completed. Invoke the ServerDelegate to handle the request
+    private func headersComplete() {
         // If the IncomingSocketHandler was freed, we can't handle the request
         guard let handler = handler else {
             Log.error("IncomingSocketHandler not set or freed before parsing complete")
             return
         }
-        
-        if isUpgrade {
-            ConnectionUpgrader.instance.upgradeConnection(handler: handler, request: request, response: response)
-            inProgress = false
+        guard let delegate = delegate else {
+            Log.error("ServerDelegate not set or freed before parsing complete")
+            return
         }
-        else {
-            DispatchQueue.global().async() { [weak self] in
-                if let strongSelf = self {
-                    Monitor.delegate?.started(request: request, response: response)
-                    strongSelf.delegate?.serve(req: request, res: httpResponseWriter)
-                }
-            }
+
+        let request = getHTTPRequest()
+        let responseWriter = ResponseWriter(httpParser: httpParser, request: request, socketHandler: handler)
+
+        DispatchQueue.global().async() {
+            delegate.serve(req: request, res: responseWriter)
         }
     }
-    
+
     /// A socket can be kept alive for future requests. Set it up for future requests and mark how long it can be idle.
     func keepAlive() {
         state = .reset
