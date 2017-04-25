@@ -1,13 +1,9 @@
-import HTTPAPISketch
-
-struct Action {
-
-}
+import K2Spike
 
 struct Router {
-    var map: [Path: Action]
+    var map: [Path: ResponseCreator]
 
-    func route(request: HTTPRequest) -> Action? {
+    func route(request: HTTPRequest) -> ResponseCreator? {
         guard let verb = Verb(request.method) else {
             return nil
         }

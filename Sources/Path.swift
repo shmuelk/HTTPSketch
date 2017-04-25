@@ -1,4 +1,4 @@
-import HTTPAPISketch
+import K2Spike
 
 enum Verb: String {
     case GET = "get"
@@ -31,41 +31,41 @@ enum Verb: String {
     }
 }
 
-struct Operation {
-    var tags: [String]
-    var summary: String
-    var description: String
-    var externalDocs: String
-    var operationId: String
-    var consumes: [String]
-    var produces: [String]
-    var parameters: [Parameter]
-    var responses: [Response]
-    var schemes: [String]
-    var deprecated: Bool
-    var security: SecurityRequirement
-}
-
-struct Response {
-
-}
-
-struct SecurityRequirement {
-
-}
-
-struct Parameter {
-
-}
-
-struct PathItem {
-    var operations: [Verb: Operation]
-    var parameters: [Parameter]
-}
-
-struct Paths {
-    var paths: [String: PathItem]
-}
+//struct Operation {
+//    var tags: [String]
+//    var summary: String
+//    var description: String
+//    var externalDocs: String
+//    var operationId: String
+//    var consumes: [String]
+//    var produces: [String]
+//    var parameters: [Parameter]
+//    var responses: [Response]
+//    var schemes: [String]
+//    var deprecated: Bool
+//    var security: SecurityRequirement
+//}
+//
+//struct Response {
+//
+//}
+//
+//struct SecurityRequirement {
+//
+//}
+//
+//struct Parameter {
+//
+//}
+//
+//struct PathItem {
+//    var operations: [Verb: Operation]
+//    var parameters: [Parameter]
+//}
+//
+//struct Paths {
+//    var paths: [String: PathItem]
+//}
 
 struct Path: Hashable {
     var path: String
