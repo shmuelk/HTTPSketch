@@ -37,7 +37,7 @@ class ParseResults {
     private(set) var httpVersionMinor: UInt16 = 0
     
     /// Set of HTTP headers of the incoming message.
-    var headers = HeadersContainer()
+    var headers: HTTPHeaders = HTTPHeaders()
     
     /// State of callbacks from parser WRT headers
     private var lastHeaderWasAValue = false
@@ -122,7 +122,7 @@ class ParseResults {
         completed = false
         lastHeaderWasAValue = false
         bodyChunk.reset()
-        headers.removeAll()
+        headers = HTTPHeaders()
         url.length = 0
     }
     
@@ -134,7 +134,7 @@ class ParseResults {
         lastHeaderValue.append(&zero, length: 1)
         let headerValue = String(cString: lastHeaderValue.bytes.assumingMemoryBound(to: CChar.self))
         
-        headers.append(headerKey, value: headerValue)
+        headers[headerKey] = [headerValue]
         
         lastHeaderField.length = 0
         lastHeaderValue.length = 0

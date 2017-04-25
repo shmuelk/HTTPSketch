@@ -130,7 +130,7 @@ public class HTTPServer: Server {
     ///
     /// - Returns: a new `HTTPServer` instance
     public static func listen(on port: Int, delegate: ServerDelegate?) throws -> HTTPServer {
-        let server = HTTP.createServer()
+        let server = HTTPServer()
         server.delegate = delegate
         try server.listen(on: port)
         return server
@@ -163,7 +163,7 @@ public class HTTPServer: Server {
     /// - Returns: a new `HTTPServer` instance
     @available(*, deprecated, message: "use 'listen(on:delegate:) throws' with 'server.failed(callback:)' instead")
     public static func listen(port: Int, delegate: ServerDelegate, errorHandler: ((Swift.Error) -> Void)? = nil) -> HTTPServer {
-        let server = HTTP.createServer()
+        let server = HTTPServer()
         server.delegate = delegate
         server.listen(port: port, errorHandler: errorHandler)
         return server

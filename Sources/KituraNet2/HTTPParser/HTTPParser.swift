@@ -37,7 +37,7 @@ class HTTPParser {
     var httpVersionMinor: UInt16 { return parseResults.httpVersionMinor }
     
     /// Set of HTTP headers of the incoming message.
-    var headers: HeadersContainer { return parseResults.headers }
+    var headers: HTTPHeaders { return parseResults.headers }
     
     /// Chunk of body read in by the http_parser
     var bodyChunk: BufferList { return parseResults.bodyChunk }
@@ -51,9 +51,6 @@ class HTTPParser {
     /// Settings used for HTTPParser
     var settings: http_parser_settings
 
-    /// Parsing a request? (or a response)
-    var isRequest = true
-    
     /// Results of the parsing of an HTTP incoming message
     private var parseResults = ParseResults()
     
@@ -65,10 +62,7 @@ class HTTPParser {
     /// - Parameter isRequest: whether or not this HTTP message is a request
     ///
     /// - Returns: an HTTPParser instance
-    init(isRequest: Bool) {
-
-        self.isRequest = isRequest
-
+    init() {
         parser = http_parser()
         settings = http_parser_settings()
         
@@ -131,18 +125,18 @@ class HTTPParser {
 
     /// Reset the http_parser context structure.
     func reset() {
-        http_parser_init(&parser, isRequest ? HTTP_REQUEST : HTTP_RESPONSE)
+        http_parser_init(&parser, HTTP_REQUEST)
         parseResults.reset()
     }
 
     /// Did the request include a Connection: keep-alive header?
     func isKeepAlive() -> Bool {
-        return isRequest && http_should_keep_alive(&parser) == 1
+        return http_should_keep_alive(&parser) == 1
     }
 
     /// Get the HTTP status code on responses
-    var statusCode: HTTPStatusCode {
-        return isRequest ? .unknown : HTTPStatusCode(rawValue: Int(parser.status_code)) ?? .unknown
+    var statusCode: HTTPResponseStatus {
+        return HTTPResponseStatus.custom(code: UInt(parser.status_code), reasonPhrase: "TODO")
     }
 }
 

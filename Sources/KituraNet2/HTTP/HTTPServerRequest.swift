@@ -27,7 +27,7 @@ public class HTTPServerRequestDEL {
     /// HTTP Status code if this message is a response
     @available(*, deprecated, message:
     "This method never worked on Server Requests and was inherited incorrectly from a super class")
-    public private(set) var httpStatusCode: HTTPStatusCode = .unknown
+    public private(set) var httpStatusCode: HTTPResponseStatus? = nil
     
     /// Client connection socket
     private let socket: Socket
@@ -47,7 +47,7 @@ public class HTTPServerRequestDEL {
     public var httpVersionMinor: UInt16? { return httpParser?.httpVersionMinor ?? 0}
     
     /// Set of HTTP headers of the request.
-    public var headers: HeadersContainer { return httpParser?.headers ?? HeadersContainer() }
+    public var headers: HTTPHeaders { return httpParser?.headers ?? HTTPHeaders() }
     
     /// socket signature of the request.
     public var signature: Socket.Signature? { return socket.signature }
@@ -69,13 +69,8 @@ public class HTTPServerRequestDEL {
             Log.error("Socket signature not initialized, using http")
         }
         
-        if let host = headers["Host"]?[0] {
-            url.append(host)
-        } else {
-            url.append("Host_Not_Available")
-            Log.error("Host header not received")
-        }
-        
+        url.append(headers["Host"][0])
+
         url.append(httpParser?.urlString ?? "")
         
         if let urlURL = URL(string: url) {
@@ -209,11 +204,8 @@ public class HTTPServerRequestDEL {
                 Log.error("Socket signature not initialized, using http")
             }
             
-            if let forwardedFor = headers["X-Forwarded-For"]?[0] {
-                Log.verbose("HTTP request forwarded for=\(forwardedFor); proto=\(headers["X-Forwarded-Proto"]?[0] ?? "N.A."); by=\(socket.remoteHostname );")
-            } else {
-                Log.verbose("HTTP request from=\(socket.remoteHostname); proto=\(proto ?? "N.A.");")
-            }
+            let forwardedFor = headers["X-Forwarded-For"][0]
+            Log.verbose("HTTP request forwarded for=\(forwardedFor); proto=\(headers["X-Forwarded-Proto"][0]); by=\(socket.remoteHostname );")
         }
         
         status.keepAlive = httpParser.isKeepAlive()

@@ -35,7 +35,7 @@ public class HTTPServerResponseDEL {
     public var headers = HeadersContainer()
     
     /// Status code
-    private var status = HTTPStatusCode.OK.rawValue
+    private var status = HTTPResponseStatus.ok
     
     /// Corresponding socket processor
     private weak var processor : IncomingHTTPSocketProcessor?
@@ -43,7 +43,7 @@ public class HTTPServerResponseDEL {
     let request: HTTPServerRequestDEL?
 
     /// HTTP status code of the response.
-    public var statusCode: HTTPStatusCode? {
+/*    public var statusCode: HTTPResponseStatus? {
         get {
             return HTTPStatusCode(rawValue: status)
         }
@@ -52,7 +52,7 @@ public class HTTPServerResponseDEL {
                 status = newValue.rawValue
             }
         }
-    }
+    }*/
 
     /// Initializes a HTTPServerResponse instance
     init(processor: IncomingHTTPSocketProcessor, request: HTTPServerRequestDEL?) {
@@ -139,15 +139,15 @@ public class HTTPServerResponseDEL {
         var headerData = ""
         headerData.reserveCapacity(254)
         headerData.append("HTTP/1.1 ")
-        headerData.append(String(status))
+        //headerData.append(String(status))
         headerData.append(" ")
-        var statusText = HTTP.statusCodes[status]
+        //var statusText = HTTP.statusCodes[status]
 
-        if  statusText == nil {
+        /*if  statusText == nil {
             statusText = ""
-        }
+        }*/
 
-        headerData.append(statusText!)
+        //headerData.append(statusText!)
         headerData.append("\r\n")
 
         for (_, entry) in headers.headers {
@@ -204,7 +204,7 @@ public class HTTPServerResponseDEL {
     
     /// Reset this response object back to its initial state
     public func reset() {
-        status = HTTPStatusCode.OK.rawValue
+        status = HTTPResponseStatus.ok
         buffer.length = 0
         startFlushed = false
         headers.removeAll()

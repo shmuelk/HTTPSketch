@@ -164,8 +164,9 @@ public enum HTTPResponseStatus {
     case networkAuthenticationRequired
 }
 
-public enum HTTPMethod {
-    case custom(method: String)
+public enum HTTPMethod: String {
+    // case custom(method: String)
+    case UNKNOWN
 
     /* everything that http_parser.[ch] supports */
     case DELETE

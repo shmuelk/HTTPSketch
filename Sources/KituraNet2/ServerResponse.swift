@@ -22,7 +22,7 @@ import Foundation
 public protocol ServerResponseDEL: class {
     
     /// The status code to send in the HTTP response.
-    var statusCode: HTTPStatusCode? { get set }
+    var statusCode: HTTPResponseStatus? { get set }
     
     /// The headers to send back as part of the HTTP response.
     var headers : HeadersContainer { get }

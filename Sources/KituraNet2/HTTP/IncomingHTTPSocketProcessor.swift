@@ -70,7 +70,7 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
     
     init(socket: Socket, using: ServerDelegate) {
         delegate = using
-        self.httpParser = HTTPParser(isRequest: true)
+        self.httpParser = HTTPParser()
         self.socket = socket
     }
     
@@ -218,14 +218,18 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
             break
         }
     }
-    
+
     /// Parsing has completed. Invoke the ServerDelegate to handle the request
     private func parsingComplete() {
         state = .messageCompletelyRead
-        
-        let request = HTTPServerRequest(socket: socket, httpParser: httpParser)
-        request.parsingCompleted()
-        
+
+        let method =  HTTPMethod(rawValue: httpParser.method) ?? HTTPMethod.UNKNOWN
+        let target = httpParser.urlString
+        let httpVersion = (Int(httpParser.httpVersionMajor), Int(httpParser.httpVersionMinor))
+        let headers = httpParser.headers
+
+        let request = HTTPRequest(method: method, target: target, httpVersion: httpVersion, headers: headers)
+
         let response = HTTPServerResponse(processor: self, request: request)
 
         // If the IncomingSocketHandler was freed, we can't handle the request
@@ -239,11 +243,10 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
             inProgress = false
         }
         else {
-            weak var weakRequest = request
             DispatchQueue.global().async() { [weak self] in
-                if let strongSelf = self, let strongRequest = weakRequest {
-                    Monitor.delegate?.started(request: strongRequest, response: response)
-                    strongSelf.delegate?.serve(req: strongRequest, res: httpResponseWriter)
+                if let strongSelf = self {
+                    Monitor.delegate?.started(request: request, response: response)
+                    strongSelf.delegate?.serve(req: request, res: httpResponseWriter)
                 }
             }
         }
