@@ -23,6 +23,22 @@ class TestResponseResolver: HTTPResponseWriter {
         self.requestBody = requestBody
     }
     
+    func resolveHandler(_ handler:WebApp) {
+        let chunkHandler = handler(request, self)
+        var stop=false
+        var finished=false
+        while !stop && !finished {
+            switch chunkHandler {
+            case .processBody(let handler):
+                handler(.chunk(data: self.requestBody, finishedProcessing: {
+                    finished=true
+                }), &stop)
+            case .discardBody:
+                finished=true
+            }
+        }
+    }
+    
     func writeContinue(headers: HTTPHeaders?) /* to send an HTTP `100 Continue` */ {
         fatalError("Not implemented")
     }

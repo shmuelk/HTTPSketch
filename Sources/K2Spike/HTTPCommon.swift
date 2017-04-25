@@ -10,6 +10,8 @@ import Foundation
 
 public typealias HTTPVersion = (Int, Int)
 
+public typealias WebApp = (HTTPRequest, HTTPResponseWriter) -> HTTPBodyProcessing
+
 public struct HTTPHeaders {
     var storage: [String:[String]]     /* lower cased keys */
     let original: [(String, String)]   /* original casing */
