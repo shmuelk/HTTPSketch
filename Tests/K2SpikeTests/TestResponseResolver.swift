@@ -55,10 +55,6 @@ class TestResponseResolver: HTTPResponseWriter {
     
     func writeBody(data: DispatchData, completion: @escaping (Result<POSIXError, ()>) -> Void) {
         self.responseBody = Data(data)
-        /*self.responseBody = data.withUnsafeBytes<UInt8, Data> { (ptr: UnsafePointer<UInt8>) -> Data in
-            Data(bytes: ptr, count: requestBody.count)
-        }
- */
         completion(Result(completion: ()))
     }
     func writeBody(data: DispatchData) /* convenience */ {
@@ -68,6 +64,8 @@ class TestResponseResolver: HTTPResponseWriter {
     }
     
     func writeBody(data: Data, completion: @escaping (Result<POSIXError, ()>) -> Void) {
+        self.responseBody = data
+        completion(Result(completion: ()))
     }
     
     func writeBody(data: Data) /* convenience */ {
