@@ -97,16 +97,16 @@ public enum HTTPTransferEncoding {
     case chunked
 }
 
-public enum HTTPResponseStatus {
+public enum HTTPResponseStatus: Int {
     /* use custom if you want to use a non-standard response code or
      have it available in a (UInt, String) pair from a higher-level web framework. */
-    case custom(code: UInt, reasonPhrase: String)
+    //case custom(code: UInt, reasonPhrase: String)
 
     /* all the codes from http://www.iana.org/assignments/http-status-codes */
     case `continue`
     case switchingProtocols
     case processing
-    case ok
+    case ok = 200
     case created
     case accepted
     case nonAuthoritativeInformation

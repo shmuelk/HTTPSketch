@@ -138,9 +138,9 @@ class HTTPParser {
     }
 
     /// Get the HTTP status code on responses
-    var statusCode: HTTPResponseStatus {
+    /*var statusCode: HTTPResponseStatus {
         return HTTPResponseStatus.custom(code: UInt(parser.status_code), reasonPhrase: "TODO")
-    }
+    }*/
 }
 
 fileprivate func getResults(_ parser: UnsafeMutableRawPointer?) -> ParseResults? {
