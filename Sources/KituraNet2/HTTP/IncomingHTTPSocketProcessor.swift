@@ -169,12 +169,15 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
         
         status.bytesLeft = length - numberParsed
         
-        if httpParser.completed {
+        if httpParser.messageCompleted {
             status.state = .messageComplete
             status.keepAlive = httpParser.isKeepAlive() 
             return status
-        }
-        else if numberParsed != length  {
+        } else if httpParser.headersCompleted {
+            status.state = .headersComplete
+            status.keepAlive = httpParser.isKeepAlive()
+            return status
+        } else if numberParsed != length  {
             /* Handle error. Usually just close the connection. */
             status.error = .parsedLessThanRead
         }
@@ -210,19 +213,20 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
         case .initial:
             break
         case .messageComplete:
+            state = .messageCompletelyRead
+            fallthrough
+        case .headersComplete:
             isUpgrade = parsingStatus.upgrade
             clientRequestedKeepAlive = parsingStatus.keepAlive && !isUpgrade
-            parsingComplete()
+            headersComplete()
         case .reset:
             state = .reset
             break
         }
     }
 
-    /// Parsing has completed. Invoke the ServerDelegate to handle the request
-    private func parsingComplete() {
-        state = .messageCompletelyRead
-
+    /// Parsing headers has completed. Invoke the ServerDelegate to handle the request
+    private func headersComplete() {
         let method =  HTTPMethod(rawValue: httpParser.method) ?? HTTPMethod.UNKNOWN
         let target = httpParser.urlString
         let httpVersion = (Int(httpParser.httpVersionMajor), Int(httpParser.httpVersionMinor))

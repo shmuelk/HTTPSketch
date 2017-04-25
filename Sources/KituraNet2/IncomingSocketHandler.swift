@@ -53,7 +53,7 @@ public class IncomingSocketHandler {
     let socket: Socket
 
     /// The `IncomingSocketProcessor` instance that processes data read from the underlying socket.
-    public var processor: IncomingSocketProcessor?
+    public var processor: IncomingHTTPSocketProcessor?
     
     private weak var manager: IncomingSocketManager?
     
@@ -88,7 +88,7 @@ public class IncomingSocketHandler {
     
     init(socket: Socket, using: IncomingSocketProcessor, managedBy: IncomingSocketManager) {
         self.socket = socket
-        processor = using
+        processor = using as? IncomingHTTPSocketProcessor
         manager = managedBy
         processor?.handler = self
         

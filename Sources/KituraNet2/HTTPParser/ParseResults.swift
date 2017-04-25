@@ -18,9 +18,12 @@ import Foundation
 
 /// class to hold results of callbacks from the http_parser
 class ParseResults {
-    /// Have the parsing completed? (MessageComplete)
-    var completed = false
-    
+    /// Have the headers been parsed
+    var headersCompleted = false
+
+    /// parsing completed? (MessageComplete)
+    var messageCompleted = false
+
     /// HTTP Method of the incoming message.
     private(set) var method = ""
     
@@ -78,6 +81,8 @@ class ParseResults {
         url.append(&zero, length: 1)
         urlString = String(cString: url.bytes.assumingMemoryBound(to: CChar.self))
         url.length -= 1
+
+        headersCompleted = true
     }
     
     /// Callback for when a piece of a header key was parsed
@@ -107,7 +112,7 @@ class ParseResults {
     
     /// Callback for when the HTTP message is completely parsed
     func onMessageComplete() {
-        completed = true
+        messageCompleted = true
     }
     
     /// Instructions for when reading URL portion
@@ -119,7 +124,8 @@ class ParseResults {
     }
     
     func reset() {
-        completed = false
+        headersCompleted = false
+        messageCompleted = false
         lastHeaderWasAValue = false
         bodyChunk.reset()
         headers = HTTPHeaders()

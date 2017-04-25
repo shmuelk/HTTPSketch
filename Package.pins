@@ -1,36 +1,6 @@
 {
-  "autoPin": true,
+  "autoPin": false,
   "pins": [
-    {
-      "package": "CCurl",
-      "reason": null,
-      "repositoryURL": "https://github.com/IBM-Swift/CCurl.git",
-      "version": "0.2.3"
-    },
-    {
-      "package": "CHTTPParser",
-      "reason": null,
-      "repositoryURL": "https://github.ibm.com/navneet/CHTTPParser.git",
-      "version": "0.1.0"
-    },
-    {
-      "package": "LoggerAPI",
-      "reason": null,
-      "repositoryURL": "https://github.com/IBM-Swift/LoggerAPI.git",
-      "version": "1.7.0"
-    },
-    {
-      "package": "SSLService",
-      "reason": null,
-      "repositoryURL": "https://github.com/IBM-Swift/BlueSSLService.git",
-      "version": "0.12.32"
-    },
-    {
-      "package": "Socket",
-      "reason": null,
-      "repositoryURL": "https://github.com/IBM-Swift/BlueSocket.git",
-      "version": "0.12.45"
-    }
   ],
   "version": 1
 }

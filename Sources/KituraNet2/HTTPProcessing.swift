@@ -24,8 +24,8 @@ public enum Result<POSIXError, Void> {
 
     // MARK: Constructors
     /// Constructs a success wrapping a `closure`.
-    public init(value: ()) {
-        self = .success(value)
+    public init(completion: ()) {
+        self = .success(completion)
     }
 
     /// Constructs a failure wrapping an `POSIXError`.

@@ -41,9 +41,12 @@ class HTTPParser {
     
     /// Chunk of body read in by the http_parser
     var bodyChunk: BufferList { return parseResults.bodyChunk }
-    
+
+    /// Parsing of headers completed
+    var headersCompleted: Bool { return parseResults.headersCompleted }
+
     /// Parsing of message completed
-    var completed: Bool { return parseResults.completed }
+    var messageCompleted: Bool { return parseResults.messageCompleted }
     
     /// A Handle to the HTTPParser C-library
     var parser: http_parser
