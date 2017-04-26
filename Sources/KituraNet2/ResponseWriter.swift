@@ -56,7 +56,7 @@ class ResponseWriter: HTTPResponseWriter {
             return
         }
 
-        var headers = "HTTP/1.1 \(response.status.rawValue) \(response.status)\r\n"
+        var headers = "HTTP/1.1 \(response.status.code) \(response.status.reasonPhrase)\r\n"
 
         switch(response.transferEncoding) {
         case .chunked:
