@@ -205,7 +205,7 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
             }
 
             let request = getHTTPRequest()
-            let responseWriter = ResponseWriter(httpParser: httpParser, request: request, socketHandler: handler)
+            let responseWriter = ResponseWriter(httpParser: httpParser, request: request, socketHandler: handler, isUpgrade: isUpgrade, isKeepAlive: isKeepAlive, maxRequests: (numberOfRequests - 1))
             responseWriter.writeResponse(HTTPResponse(httpVersion: request.httpVersion,
                                            status: .badRequest,
                                            transferEncoding: .identity(contentLength: 0), headers: HTTPHeaders()))
@@ -250,7 +250,8 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
         }
 
         let request = getHTTPRequest()
-        let responseWriter = ResponseWriter(httpParser: httpParser, request: request, socketHandler: handler)
+        let responseWriter = ResponseWriter(httpParser: httpParser, request: request, socketHandler: handler,
+                                            isUpgrade: isUpgrade, isKeepAlive: isKeepAlive, maxRequests: (numberOfRequests - 1))
 
         DispatchQueue.global().async() {
             delegate.serve(req: request, res: responseWriter)

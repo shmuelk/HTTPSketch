@@ -7,13 +7,20 @@ class ResponseWriter: HTTPResponseWriter {
     private let httpParser: HTTPParser
     private let request: HTTPRequest
     private let socketHandler: IncomingSocketHandler
+    private let isUpgrade: Bool
+    private let isKeepAlive: Bool
+    private let maxRequests: Int
+
     private var requestBodyBuffer: Data
     private var headersWritten = false
 
-    init(httpParser: HTTPParser, request: HTTPRequest, socketHandler: IncomingSocketHandler) {
+    init(httpParser: HTTPParser, request: HTTPRequest, socketHandler: IncomingSocketHandler, isUpgrade: Bool, isKeepAlive: Bool, maxRequests: Int) {
         self.httpParser = httpParser
         self.request = request
         self.socketHandler = socketHandler
+        self.isUpgrade = isUpgrade
+        self.isKeepAlive = isKeepAlive
+        self.maxRequests = maxRequests
         self.requestBodyBuffer = Data(capacity: ResponseWriter.bufferSize)
     }
 
@@ -43,34 +50,34 @@ class ResponseWriter: HTTPResponseWriter {
             return
         }
 
-        var headerData = "HTTP/1.1 \(response.status.rawValue) \(response.status)\r\n"
+        var headers = "HTTP/1.1 \(response.status.rawValue) \(response.status)\r\n"
 
-        for (_, entry) in headers.headers {
-            for value in entry.value {
-                headerData.append(entry.key)
-                headerData.append(": ")
-                headerData.append(value)
-                headerData.append("\r\n")
-            }
+        switch(response.transferEncoding) {
+        case .chunked:
+            headers += "Transfer-Encoding: chunked\r\n"
+        case .identity(let contentLength):
+            headers += "Content-Length: \(contentLength)\r\n"
         }
 
-        let upgrade = processor?.isUpgrade ?? false
-        let keepAlive = processor?.isKeepAlive ?? false
-        if !upgrade {
-            if  keepAlive {
-                headerData.append("Connection: Keep-Alive\r\n")
-                headerData.append("Keep-Alive: timeout=\(Int(IncomingHTTPSocketProcessor.keepAliveTimeout)), max=\((processor?.numberOfRequests ?? 1) - 1)\r\n")
+        for (key, value) in response.headers.makeIterator() {
+            headers += "\(key): \(value)\r\n"
+        }
+
+        if !isUpgrade {
+            if  isKeepAlive {
+                headers.append("Connection: Keep-Alive\r\n")
+                headers.append("Keep-Alive: timeout=\(Int(IncomingHTTPSocketProcessor.keepAliveTimeout)), max=\(maxRequests)\r\n")
             }
             else {
-                headerData.append("Connection: Close\r\n")
+                headers.append("Connection: Close\r\n")
             }
         }
-        headerData.append("\r\n")
+        headers.append("\r\n")
 
         // TODO use requested encoding if specified
-        if let responseHeaders = headerData.data(using: String.Encoding.utf8) {
-            responseHeaders.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-                try socketHandler.write(from: ptr, length: headerData.utf8.count)
+        if let headersData = headers.data(using: String.Encoding.utf8) {
+            headersData.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
+                socketHandler.write(from: ptr, length: headers.utf8.count)
             }
             headersWritten = true
         } else {
@@ -84,10 +91,14 @@ class ResponseWriter: HTTPResponseWriter {
 
     func writeBody(data: DispatchData, completion: @escaping (Result<POSIXError, ()>) -> Void) {
         guard headersWritten else {
-            //TODO
+            //TODO error or default headers?
             return
         }
-        //TODO
+
+        data.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
+            socketHandler.write(from: ptr, length: data.count)
+        }
+
         completion(Result(completion: ()))
     }
 
@@ -99,10 +110,14 @@ class ResponseWriter: HTTPResponseWriter {
 
     func writeBody(data: Data, completion: @escaping (Result<POSIXError, ()>) -> Void) {
         guard headersWritten else {
-            //TODO
+            //TODO error or default headers?
             return
         }
-        //TODO
+
+        data.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
+            socketHandler.write(from: ptr, length: data.count)
+        }
+        
         completion(Result(completion: ()))
     }
 
