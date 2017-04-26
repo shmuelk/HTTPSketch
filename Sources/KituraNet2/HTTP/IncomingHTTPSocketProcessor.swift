@@ -254,7 +254,7 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
                                             isUpgrade: isUpgrade, isKeepAlive: isKeepAlive, maxRequests: (numberOfRequests - 1))
 
         DispatchQueue.global().async() {
-            delegate.serve(req: request, res: responseWriter)
+            responseWriter.resolveHandler(delegate.serve)
         }
     }
 

@@ -1,6 +1,7 @@
 /* a web app is a function that gets a HTTPRequest and a HTTPResponseWriter and returns a function which processes the HTTP request body in chunks as they arrive */
 
 import Foundation
+import Dispatch
 
 public typealias WebApp = (HTTPRequest, HTTPResponseWriter) -> HTTPBodyProcessing
 
