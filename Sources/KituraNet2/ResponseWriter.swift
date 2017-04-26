@@ -26,17 +26,23 @@ class ResponseWriter: HTTPResponseWriter {
 
     func resolveHandler(_ handler:WebApp) {
         let chunkHandler = handler(request, self)
-        var stop=false
-        while !stop {
+        var stop = false
+        var finished = false
+        while !stop && !finished {
             switch chunkHandler {
             case .processBody(let handler):
                 let count = httpParser.bodyChunk.fill(data: &requestBodyBuffer)
                 let data = requestBodyBuffer.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) -> DispatchData in
                     DispatchData(bytes: UnsafeBufferPointer<UInt8>(start: ptr, count: count))
                 }
-                handler(.chunk(data: data, finishedProcessing: { }), &stop)
+                handler(.chunk(data: data, finishedProcessing: {
+                    if count <= 0 {
+                        finished = true
+                        handler(.end, &stop)
+                    }
+                }), &stop)
             case .discardBody:
-                stop=true
+                finished=true
             }
         }
     }
@@ -128,8 +134,10 @@ class ResponseWriter: HTTPResponseWriter {
     }
 
     func done(completion: @escaping (Result<POSIXError, ()>) -> Void) {
+        socketHandler.prepareToClose()
         completion(Result(completion: ()))
     }
+
     func done() /* convenience */ {
         done() { _ in
         }
