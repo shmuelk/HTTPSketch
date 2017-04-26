@@ -7,10 +7,11 @@
 //
 
 import Foundation
+import LoggerAPI
 
 public class ResponseCreator: ServerDelegate {
     public func serve(req: HTTPRequest, res: HTTPResponseWriter) -> HTTPBodyProcessing {
-        print("ResponseCreator serving \(req.target)")
+        Log.debug("ResponseCreator serving \(req.target)")
 
         if req.target == "/echo" {
             guard req.httpVersion == (1, 1) else {

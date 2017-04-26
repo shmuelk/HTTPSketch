@@ -1,7 +1,7 @@
 import LoggerAPI
 import HeliumLogger
 
-HeliumLogger.use(.debug)
+HeliumLogger.use(.info)
 
 let port = 8080
 let server = HTTPServer()
