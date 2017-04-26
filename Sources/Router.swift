@@ -1,16 +1,93 @@
+import Foundation
 import K2Spike
+
+extension String {
+    var isPathParameter: Bool {
+        return self.hasPrefix("{") && self.hasSuffix("}")
+    }
+
+    var parameterName: String? {
+        guard self.isPathParameter else {
+            return nil
+        }
+
+        return self[self.index(after: self.startIndex)..<self.index(before: self.endIndex)]
+    }
+}
+
+struct PathComponents {
+    let parameters: [String: String]?
+    let queries: [URLQueryItem]?
+}
+
+struct URLParser {
+    var pathComponents: [String]
+
+    init?(path: String) {
+        pathComponents = path.components(separatedBy: "/")
+
+        if pathComponents.first == "" {
+            pathComponents.removeFirst()
+        }
+    }
+
+    func parse(_ string: String) -> PathComponents? {
+        guard let url = URL(string: string) else {
+            return nil
+        }
+
+        // Step 1
+        // Parse URL for path parameters
+        var components = url.pathComponents
+
+        if components.first == "/" {
+            components.removeFirst()
+        }
+
+        guard pathComponents.count == components.count else {
+            return nil
+        }
+
+        var parameters: [String: String] = [:]
+
+        for i in 0..<pathComponents.count {
+            if let parameter = pathComponents[i].parameterName {
+                parameters[parameter] = components[i]
+            }
+            else {
+                guard pathComponents[i] == components[i] else {
+                    // path does not match
+                    return nil
+                }
+            }
+        }
+
+        // Step 2
+        // Parse URL for query parameters
+        let queries = URLComponents(string: string)?.queryItems
+        
+        return PathComponents(parameters: parameters, queries: queries)
+    }
+}
 
 struct Router {
     var map: [Path: ResponseCreator]
 
-    func route(request: HTTPRequest) -> ResponseCreator? {
+    func route(request: HTTPRequest) -> (PathComponents, ResponseCreator)? {
         guard let verb = Verb(request.method) else {
             return nil
         }
 
-        let url = request.target
-        let path = Path(path: url, verb: verb)
+        for (path, creator) in map {
+            guard verb == path.verb,
+                let parser = URLParser(path: path.path),
+                let components = parser.parse(request.target) else {
+                continue
+            }
 
-        return map[path]
+            return (components, creator)
+        }
+
+        return nil
     }
 }
