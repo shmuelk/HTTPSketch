@@ -51,12 +51,8 @@ public class IncomingSocketHandler {
     #endif
 
     let socket: Socket
+    private let delegate: ResponseCreating
 
-    /// The `IncomingSocketProcessor` instance that processes data read from the underlying socket.
-    public var processor: IncomingHTTPSocketProcessor?
-    
-    private weak var manager: IncomingSocketManager?
-    
     private let readBuffer = NSMutableData()
     private let writeBuffer = NSMutableData()
     private var writeBufferPosition = 0
@@ -85,13 +81,46 @@ public class IncomingSocketHandler {
 
     /// The file descriptor of the incoming socket
     var fileDescriptor: Int32 { return socket.socketfd }
-    
-    init(socket: Socket, using: IncomingSocketProcessor, managedBy: IncomingSocketManager) {
+
+    /// Keep alive timeout for idle sockets in seconds
+    static let keepAliveTimeout: TimeInterval = 60
+
+    /// A flag indicating that the client has requested that the socket be kept alive
+    private(set) var clientRequestedKeepAlive = false
+
+    /// The socket if idle will be kep alive until...
+    public var keepAliveUntil: TimeInterval = 0.0
+
+    /// A flag indicating that the client has requested that the prtocol be upgraded
+    private(set) var isUpgrade = false
+
+    /// A flag that indicates that there is a request in progress
+    public var inProgress = true
+
+    ///HTTP Parser
+    private let httpParser = HTTPParser()
+
+    /// The number of remaining requests that will be allowed on the socket being handled by this handler
+    private(set) var numberOfRequests = 100
+
+    /// Should this socket actually be kept alive?
+    var isKeepAlive: Bool { return clientRequestedKeepAlive && numberOfRequests > 0 }
+
+    /// An enum for internal state
+    enum State {
+        case reset, readingMessage, requestDispatched, messageCompletelyRead
+    }
+
+    /// The state of this handler
+    private(set) var state = State.readingMessage
+
+    /// Location in the buffer to start parsing from
+    private var parseStartingFrom = 0
+
+    init(socket: Socket, delegate: ResponseCreating) {
         self.socket = socket
-        processor = using as? IncomingHTTPSocketProcessor
-        manager = managedBy
-        processor?.handler = self
-        
+        self.delegate = delegate
+
         #if os(OSX) || os(iOS) || os(tvOS) || os(watchOS) || GCD_ASYNCH
             readerSource = DispatchSource.makeReadSource(fileDescriptor: socket.socketfd,
                                                          queue: socketReaderQueue(fd: socket.socketfd))
@@ -136,7 +165,7 @@ public class IncomingSocketHandler {
             else {
                 if socket.remoteConnectionClosed  {
                     Log.debug("socket remoteConnectionClosed in handleRead()")
-                    processor?.socketClosed()
+                    socketClosed()
                     preparingToClose = true
                 }
             }
@@ -157,9 +186,7 @@ public class IncomingSocketHandler {
     }
     
     private func handleReadHelper() -> Bool {
-        guard let processor = processor else { return true }
-        
-        let processed = processor.process(readBuffer)
+        let processed = process(readBuffer)
         if  processed {
             readBuffer.length = 0
         }
@@ -388,10 +415,173 @@ public class IncomingSocketHandler {
             socket.close()
         }
 
-        processor?.inProgress = false
-        processor?.keepAliveUntil = 0.0
-        processor?.handler = nil
-        processor?.close()
-        processor = nil
+        inProgress = false
+        clientRequestedKeepAlive = false
+        keepAliveUntil = 0.0
+    }
+
+    /// Process data read from the socket. It is either passed to the HTTP parser or
+    /// it is saved in the Pseudo synchronous reader to be read later on.
+    ///
+    /// - Parameter buffer: An NSData object that contains the data read from the socket.
+    ///
+    /// - Returns: true if the data was processed, false if it needs to be processed later.
+    public func process(_ buffer: NSData) -> Bool {
+        let result: Bool
+
+        switch(state) {
+        case .reset:
+            httpParser.reset()
+            state = .readingMessage
+            fallthrough
+
+        case .readingMessage,
+             .requestDispatched:
+            inProgress = true
+            parse(buffer)
+            result = parseStartingFrom == 0
+
+        case .messageCompletelyRead:
+            result = parseStartingFrom == 0 && buffer.length == 0
+            break
+        }
+
+        return result
+    }
+
+    /// Called by the `IncomingSocketHandler` to tell us that the socket has been closed
+    /// by the remote side.
+    public func socketClosed() {
+        keepAliveUntil=0.0
+        inProgress = false
+        clientRequestedKeepAlive = false
+    }
+
+    /// Parse the message
+    ///
+    /// - Parameter buffer: An NSData object contaning the data to be parsed
+    /// - Parameter from: From where in the buffer to start parsing
+    /// - Parameter completeBuffer: An indication that the complete buffer is being passed in.
+    ///                            If true and the entire buffer is parsed, an EOF indication
+    ///                            will be passed to the http_parser.
+    func parse (_ buffer: NSData, from: Int, completeBuffer: Bool=false) -> HTTPParserStatus {
+        var status = HTTPParserStatus()
+        let length = buffer.length - from
+
+        guard length > 0  else {
+            /* Handle unexpected EOF. Usually just close the connection. */
+            status.error = .unexpectedEOF
+            return status
+        }
+
+        // If we were reset because of keep alive
+        if  status.state == .reset  {
+            return status
+        }
+
+        let bytes = buffer.bytes.assumingMemoryBound(to: Int8.self) + from
+        let (numberParsed, upgrade) = httpParser.execute(bytes, length: length)
+
+        if completeBuffer && numberParsed == length {
+            // Tell parser we reached the end
+            _ = httpParser.execute(bytes, length: 0)
+        }
+
+        if upgrade == 1 {
+            status.upgrade = true
+        }
+
+        status.bytesLeft = length - numberParsed
+
+        if httpParser.messageCompleted {
+            status.state = .messageComplete
+            status.keepAlive = httpParser.isKeepAlive()
+            return status
+        } else if httpParser.headersCompleted {
+            status.state = .headersComplete
+            status.keepAlive = httpParser.isKeepAlive()
+            return status
+        } else if numberParsed != length  {
+            /* Handle error. Usually just close the connection. */
+            status.error = .parsedLessThanRead
+        }
+
+        return status
+    }
+
+    /// Invoke the HTTP parser against the specified buffer of data and
+    /// convert the HTTP parser's status to our own.
+    private func parse(_ buffer: NSData) {
+        let parsingStatus = parse(buffer, from: parseStartingFrom)
+
+        if parsingStatus.bytesLeft == 0 {
+            parseStartingFrom = 0
+        }
+        else {
+            parseStartingFrom = buffer.length - parsingStatus.bytesLeft
+        }
+
+        guard  parsingStatus.error == nil  else  {
+            Log.error("Failed to parse a request. \(parsingStatus.error!)")
+
+            let request = getHTTPRequest()
+            let responseWriter = ResponseWriter(httpParser: httpParser, request: request, socketHandler: self, isUpgrade: isUpgrade, isKeepAlive: isKeepAlive, maxRequests: (numberOfRequests - 1))
+            responseWriter.writeResponse(HTTPResponse(httpVersion: request.httpVersion,
+                                                      status: .badRequest,
+                                                      transferEncoding: .identity(contentLength: 0), headers: HTTPHeaders()))
+            responseWriter.done()
+            return
+        }
+
+        switch(parsingStatus.state) {
+        case .initial:
+            break
+        case .messageComplete:
+            if state == .requestDispatched {
+                state = .messageCompletelyRead
+            } else {
+                state = .messageCompletelyRead
+                dispatchRequest(parsingStatus)
+            }
+        case .headersComplete:
+            state = .requestDispatched
+            dispatchRequest(parsingStatus)
+        case .reset:
+            state = .reset
+            break
+        }
+    }
+
+    private func getHTTPRequest() -> HTTPRequest {
+        let method =  HTTPMethod(rawValue: httpParser.method) ?? HTTPMethod.UNKNOWN
+        let target = httpParser.urlString
+        let httpVersion = (Int(httpParser.httpVersionMajor), Int(httpParser.httpVersionMinor))
+        let headers = httpParser.headers
+        return HTTPRequest(method: method, target: target, httpVersion: httpVersion, headers: headers)
+    }
+
+    /// Parsing headers has completed. Invoke the ServerDelegate to handle the request
+    private func dispatchRequest(_ parsingStatus: HTTPParserStatus) {
+        isUpgrade = parsingStatus.upgrade
+        clientRequestedKeepAlive = parsingStatus.keepAlive && !isUpgrade
+
+        let request = getHTTPRequest()
+        let responseWriter = ResponseWriter(httpParser: httpParser, request: request, socketHandler: self,
+                                            isUpgrade: isUpgrade, isKeepAlive: isKeepAlive, maxRequests: (numberOfRequests - 1))
+
+        DispatchQueue.global().async() { [weak self] in
+            if let delegate = self?.delegate {
+                responseWriter.resolveHandler(delegate.serve)
+            }
+        }
+    }
+
+    /// A socket can be kept alive for future requests. Set it up for future requests and mark how long it can be idle.
+    func resetForKeepAlive() {
+        state = .reset
+        numberOfRequests -= 1
+        inProgress = false
+        keepAliveUntil = Date(timeIntervalSinceNow: IncomingSocketHandler.keepAliveTimeout).timeIntervalSinceReferenceDate
+        handleBufferedReadData()
     }
 }

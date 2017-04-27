@@ -11,6 +11,7 @@ class ResponseWriter: HTTPResponseWriter {
     private let isKeepAlive: Bool
     private let maxRequests: Int
 
+    private var isChunked = false
     private var requestBodyBuffer: Data
     private var headersWritten = false
 
@@ -61,6 +62,7 @@ class ResponseWriter: HTTPResponseWriter {
         switch(response.transferEncoding) {
         case .chunked:
             headers += "Transfer-Encoding: chunked\r\n"
+            isChunked = true
         case .identity(let contentLength):
             headers += "Content-Length: \(contentLength)\r\n"
         }
@@ -72,7 +74,7 @@ class ResponseWriter: HTTPResponseWriter {
         if !isUpgrade {
             if  isKeepAlive {
                 headers.append("Connection: Keep-Alive\r\n")
-                headers.append("Keep-Alive: timeout=\(Int(IncomingHTTPSocketProcessor.keepAliveTimeout)), max=\(maxRequests)\r\n")
+                headers.append("Keep-Alive: timeout=\(Int(IncomingSocketHandler.keepAliveTimeout)), max=\(maxRequests)\r\n")
             }
             else {
                 headers.append("Connection: Close\r\n")
@@ -101,8 +103,22 @@ class ResponseWriter: HTTPResponseWriter {
             return
         }
 
+        if isChunked {
+            let chunkStart = (String(data.count, radix: 16) + "\r\n").data(using: .utf8)!
+            chunkStart.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
+                socketHandler.write(from: ptr, length: chunkStart.count)
+            }
+        }
+
         data.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
             socketHandler.write(from: ptr, length: data.count)
+        }
+
+        if isChunked {
+            let chunkEnd = "\r\n".data(using: .utf8)!
+            chunkEnd.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
+                socketHandler.write(from: ptr, length: chunkEnd.count)
+            }
         }
 
         completion(Result(completion: ()))
@@ -120,10 +136,24 @@ class ResponseWriter: HTTPResponseWriter {
             return
         }
 
+        if isChunked {
+            let chunkStart = (String(data.count, radix: 16) + "\r\n").data(using: .utf8)!
+            chunkStart.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
+                socketHandler.write(from: ptr, length: chunkStart.count)
+            }
+        }
+
         data.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
             socketHandler.write(from: ptr, length: data.count)
         }
-        
+
+        if isChunked {
+            let chunkEnd = "\r\n".data(using: .utf8)!
+            chunkEnd.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
+                socketHandler.write(from: ptr, length: chunkEnd.count)
+            }
+        }
+
         completion(Result(completion: ()))
     }
 
@@ -134,6 +164,13 @@ class ResponseWriter: HTTPResponseWriter {
     }
 
     func done(completion: @escaping (Result<POSIXError, ()>) -> Void) {
+        if isChunked {
+            let chunkTerminate = "0\r\n\r\n".data(using: .utf8)!
+            chunkTerminate.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
+                socketHandler.write(from: ptr, length: chunkTerminate.count)
+            }
+        }
+
         socketHandler.prepareToClose()
         completion(Result(completion: ()))
     }

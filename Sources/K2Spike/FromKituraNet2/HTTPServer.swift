@@ -28,15 +28,16 @@ import SSLService
 // MARK: HTTPServer
 
 /// An HTTP server that listens for connections on a socket.
-public class HTTPServer: Server {
+public class HTTPServer {
 
     public typealias ServerType = HTTPServer
 
-    /// HTTP `ResponseCreating`.
-    public var delegate: ResponseCreating?
-
     /// Port number for listening for new connections.
     public private(set) var port: Int?
+
+    public enum ServerState {
+        case unknown, started, stopped, failed
+    }
 
     /// A server state.
     public private(set) var state: ServerState = .unknown
@@ -55,8 +56,6 @@ public class HTTPServer: Server {
 
     fileprivate let lifecycleListener = ServerLifecycleListener()
     
-    private static let dummyResponseCreating = HTTPDummyResponseCreating()
-
     public init() {
         #if os(Linux)
             // On Linux, it is not possible to set SO_NOSIGPIPE on the socket, nor is it possible
@@ -72,7 +71,8 @@ public class HTTPServer: Server {
     /// Listens for connections on a socket
     ///
     /// - Parameter on: port number for new connections (eg. 8080)
-    public func listen(on port: Int) throws {
+    /// - Parameter delegate: the delegate handler for HTTP connections
+    public func listen(on port: Int, delegate: ResponseCreating) throws {
         self.port = port
         do {
             let socket = try Socket.create()
@@ -110,7 +110,7 @@ public class HTTPServer: Server {
             self.lifecycleListener.performStartCallbacks()
 
             let queuedBlock = DispatchWorkItem(block: {
-                self.listen(listenSocket: socket, socketManager: socketManager)
+                self.listen(listenSocket: socket, socketManager: socketManager, delegate: delegate)
                 self.lifecycleListener.performStopCallbacks()
             })
 
@@ -129,57 +129,21 @@ public class HTTPServer: Server {
     /// - Parameter delegate: the delegate handler for HTTP connections
     ///
     /// - Returns: a new `HTTPServer` instance
-    public static func listen(on port: Int, delegate: ResponseCreating?) throws -> HTTPServer {
+    public static func listen(on port: Int, delegate: ResponseCreating) throws -> HTTPServer {
         let server = HTTPServer()
-        server.delegate = delegate
-        try server.listen(on: port)
-        return server
-    }
-
-    /// Listens for connections on a socket
-    ///
-    /// - Parameter port: port number for new connections (eg. 8080)
-    /// - Parameter errorHandler: optional callback for error handling
-    @available(*, deprecated, message: "use 'listen(on:) throws' with 'server.failed(callback:)' instead")
-    public func listen(port: Int, errorHandler: ((Swift.Error) -> Void)? = nil) {
-        do {
-            try listen(on: port)
-        }
-        catch let error {
-            if let callback = errorHandler {
-                callback(error)
-            } else {
-                Log.error("Error listening on port \(port): \(error)")
-            }
-        }
-    }
-
-    /// Static method to create a new HTTPServer and have it listen for connections.
-    ///
-    /// - Parameter port: port number for accepting new connections
-    /// - Parameter delegate: the delegate handler for HTTP connections
-    /// - Parameter errorHandler: optional callback for error handling
-    ///
-    /// - Returns: a new `HTTPServer` instance
-    @available(*, deprecated, message: "use 'listen(on:delegate:) throws' with 'server.failed(callback:)' instead")
-    public static func listen(port: Int, delegate: ResponseCreating, errorHandler: ((Swift.Error) -> Void)? = nil) -> HTTPServer {
-        let server = HTTPServer()
-        server.delegate = delegate
-        server.listen(port: port, errorHandler: errorHandler)
+        try server.listen(on: port, delegate: delegate)
         return server
     }
 
     /// Listen on socket while server is started and pass on to socketManager to handle
-    private func listen(listenSocket: Socket, socketManager: IncomingSocketManager) {
+    private func listen(listenSocket: Socket, socketManager: IncomingSocketManager, delegate: ResponseCreating) {
         repeat {
             do {
                 let clientSocket = try listenSocket.acceptClientConnection()
                 Log.debug("Accepted HTTP connection from: " +
                     "\(clientSocket.remoteHostname):\(clientSocket.remotePort)")
 
-                socketManager.handle(socket: clientSocket,
-                                     processor: IncomingHTTPSocketProcessor(socket: clientSocket,
-                                                        using: delegate ?? HTTPServer.dummyResponseCreating))
+                socketManager.handle(socket: clientSocket, delegate: delegate)
             } catch let error {
                 if self.state == .stopped {
                     if let socketError = error as? Socket.Error {
@@ -267,23 +231,5 @@ public class HTTPServer: Server {
     @available(*, deprecated, message:"Will be removed in future versions. Use ListenerGroup.waitForListeners() directly.")
     public static func waitForListeners() {
         ListenerGroup.waitForListeners()
-    }
-    
-    /// A Dummy `ResponseCreating` used when the user didn't supply a delegate, but has registerd
-    /// at least one ConnectionUpgradeFactory. This `ResponseCreating` will simply return 404 for
-    /// any requests it is asked to process.
-    private class HTTPDummyResponseCreating: ResponseCreating {
-        func serve(req: HTTPRequest, res: HTTPResponseWriter) -> HTTPBodyProcessing {
-            res.writeResponse(HTTPResponse(httpVersion: req.httpVersion,
-                                           status: .notFound,
-                                           transferEncoding: .chunked,
-                                           headers: HTTPHeaders([("Content-Type", "text/plain")])))
-
-            return .processBody { (chunk, stop) in
-                res.writeBody(data: "Path not found".data(using: String.Encoding.utf8)!)
-                stop = true
-                res.done()
-            }
-        }
     }
 }
