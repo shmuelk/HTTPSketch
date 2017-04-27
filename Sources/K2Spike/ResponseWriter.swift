@@ -33,9 +33,16 @@ class ResponseWriter: HTTPResponseWriter {
             switch chunkHandler {
             case .processBody(let handler):
                 let count = httpParser.bodyChunk.fill(data: &requestBodyBuffer)
-                let data = requestBodyBuffer.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) -> DispatchData in
-                    DispatchData(bytes: UnsafeBufferPointer<UInt8>(start: ptr, count: count))
+                let data: DispatchData
+                if count > 0 {
+                    data = requestBodyBuffer.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) -> DispatchData in
+                        DispatchData(bytes: UnsafeBufferPointer<UInt8>(start: ptr, count: count))
+                    }
+                } else {
+                    // TODO should we call handler with .end right away instead of with an empty chunk first?
+                    data = DispatchData.empty
                 }
+
                 handler(.chunk(data: data, finishedProcessing: {
                     if count <= 0 {
                         finished = true
