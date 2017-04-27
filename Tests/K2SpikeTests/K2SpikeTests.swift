@@ -1,4 +1,6 @@
 import XCTest
+import HeliumLogger
+
 @testable import K2Spike
 
 class K2SpikeTests: XCTestCase {
@@ -9,7 +11,7 @@ class K2SpikeTests: XCTestCase {
         resolver.resolveHandler(creator.serve)
         XCTAssertNotNil(resolver.response)
         XCTAssertNotNil(resolver.responseBody)
-        XCTAssertEqual(HTTPResponseStatus.ok.rawValue, resolver.response?.status.rawValue ?? 0)
+        XCTAssertEqual(HTTPResponseStatus.ok.code, resolver.response?.status.code ?? 0)
     }
 
     func testEcho() {
@@ -20,7 +22,7 @@ class K2SpikeTests: XCTestCase {
         resolver.resolveHandler(creator.serve)
         XCTAssertNotNil(resolver.response)
         XCTAssertNotNil(resolver.responseBody)
-        XCTAssertEqual(HTTPResponseStatus.ok.rawValue, resolver.response?.status.rawValue ?? 0)
+        XCTAssertEqual(HTTPResponseStatus.ok.code, resolver.response?.status.code ?? 0)
         XCTAssertEqual(testString, String(data: resolver.responseBody ?? Data(), encoding: .utf8) ?? "Nil")
     }
     
@@ -31,14 +33,91 @@ class K2SpikeTests: XCTestCase {
         resolver.resolveHandler(creator.serve)
         XCTAssertNotNil(resolver.response)
         XCTAssertNotNil(resolver.responseBody)
-        XCTAssertEqual(HTTPResponseStatus.ok.rawValue, resolver.response?.status.rawValue ?? 0)
+        XCTAssertEqual(HTTPResponseStatus.ok.code, resolver.response?.status.code ?? 0)
         XCTAssertEqual("Hello, World!", String(data: resolver.responseBody ?? Data(), encoding: .utf8) ?? "Nil")
     }
 
 
+    func testHelloEndToEnd() {
+        HeliumLogger.use(.info)
+        let receivedExpectation = self.expectation(description: "Received web response")
+        
+        let port = 8080
+        let server = HTTPServer()
+        let creator = HelloWorldWebApp()
+        server.started { 
+            let session = URLSession(configuration: URLSessionConfiguration.default)
+            let url = URL(string: "http://localhost:\(port)/helloworld")!
+            let dataTask = session.dataTask(with: url) { (responseBody, rawResponse, error) in
+                let response = rawResponse as? HTTPURLResponse
+                XCTAssertNil(error, "\(error!.localizedDescription)")
+                XCTAssertNotNil(response)
+                XCTAssertNotNil(responseBody)
+                XCTAssertEqual(Int(HTTPResponseStatus.ok.code), response?.statusCode ?? 0)
+                XCTAssertEqual("Hello, World!", String(data: responseBody ?? Data(), encoding: .utf8) ?? "Nil")
+                receivedExpectation.fulfill()
+            }
+            dataTask.resume()
+        }
+        
+        do {
+            try server.listen(on: port, delegate: creator)
+            self.waitForExpectations(timeout: 10) { (error) in
+                if let error = error {
+                    XCTFail("\(error)")
+                }
+            }
+            server.stop()
+        } catch {
+            XCTFail("Error listening on port \(port): \(error). Use server.failed(callback:) to handle")
+        }
+    }
+    
+    //FIXME: This test crashes with an illegal instruction
+    func testEchoEndToEnd() {
+        HeliumLogger.use(.info)
+        let receivedExpectation = self.expectation(description: "Received web response")
+        let testString="This is a test"
+
+        let port = 8080
+        let server = HTTPServer()
+        let creator = EchoWebApp()
+        server.started {
+            let session = URLSession(configuration: URLSessionConfiguration.default)
+            let url = URL(string: "http://localhost:\(port)/echo")!
+            var request = URLRequest(url: url)
+            request.httpBody = testString.data(using: .utf8)
+            let dataTask = session.dataTask(with: request) { (responseBody, rawResponse, error) in
+                let response = rawResponse as? HTTPURLResponse
+                XCTAssertNil(error, "\(error!.localizedDescription)")
+                XCTAssertNotNil(response)
+                XCTAssertNotNil(responseBody)
+                XCTAssertEqual(Int(HTTPResponseStatus.ok.code), response?.statusCode ?? 0)
+                XCTAssertEqual(testString, String(data: responseBody ?? Data(), encoding: .utf8) ?? "Nil")
+                receivedExpectation.fulfill()
+            }
+            dataTask.resume()
+        }
+        
+        do {
+            try server.listen(on: port, delegate: creator)
+            self.waitForExpectations(timeout: 10) { (error) in
+                if let error = error {
+                    XCTFail("\(error)")
+                }
+            }
+            server.stop()
+        } catch {
+            XCTFail("Error listening on port \(port): \(error). Use server.failed(callback:) to handle")
+        }
+    }
+
+    
     static var allTests = [
         ("testEcho", testEcho),
         ("testHello", testHello),
         ("testResponseOK", testResponseOK),
-    ]
+        ("testHelloEndToEnd", testHelloEndToEnd),
+        ("testEchoEndToEnd", testEchoEndToEnd),
+        ]
 }
