@@ -103,6 +103,12 @@ class ResponseWriter: HTTPResponseWriter {
             return
         }
 
+        guard data.count > 0 else {
+            // TODO fix Result
+            completion(Result(completion: ()))
+            return
+        }
+
         if isChunked {
             let chunkStart = (String(data.count, radix: 16) + "\r\n").data(using: .utf8)!
             chunkStart.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
@@ -133,6 +139,12 @@ class ResponseWriter: HTTPResponseWriter {
     func writeBody(data: Data, completion: @escaping (Result<POSIXError, ()>) -> Void) {
         guard headersWritten else {
             //TODO error or default headers?
+            return
+        }
+
+        guard data.count > 0 else {
+            // TODO fix Result
+            completion(Result(completion: ()))
             return
         }
 
