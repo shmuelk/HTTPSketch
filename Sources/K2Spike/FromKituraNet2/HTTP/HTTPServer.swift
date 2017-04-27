@@ -32,8 +32,8 @@ public class HTTPServer: Server {
 
     public typealias ServerType = HTTPServer
 
-    /// HTTP `ServerDelegate`.
-    public var delegate: ServerDelegate?
+    /// HTTP `ResponseCreating`.
+    public var delegate: ResponseCreating?
 
     /// Port number for listening for new connections.
     public private(set) var port: Int?
@@ -55,7 +55,7 @@ public class HTTPServer: Server {
 
     fileprivate let lifecycleListener = ServerLifecycleListener()
     
-    private static let dummyServerDelegate = HTTPDummyServerDelegate()
+    private static let dummyResponseCreating = HTTPDummyResponseCreating()
 
     public init() {
         #if os(Linux)
@@ -129,7 +129,7 @@ public class HTTPServer: Server {
     /// - Parameter delegate: the delegate handler for HTTP connections
     ///
     /// - Returns: a new `HTTPServer` instance
-    public static func listen(on port: Int, delegate: ServerDelegate?) throws -> HTTPServer {
+    public static func listen(on port: Int, delegate: ResponseCreating?) throws -> HTTPServer {
         let server = HTTPServer()
         server.delegate = delegate
         try server.listen(on: port)
@@ -162,7 +162,7 @@ public class HTTPServer: Server {
     ///
     /// - Returns: a new `HTTPServer` instance
     @available(*, deprecated, message: "use 'listen(on:delegate:) throws' with 'server.failed(callback:)' instead")
-    public static func listen(port: Int, delegate: ServerDelegate, errorHandler: ((Swift.Error) -> Void)? = nil) -> HTTPServer {
+    public static func listen(port: Int, delegate: ResponseCreating, errorHandler: ((Swift.Error) -> Void)? = nil) -> HTTPServer {
         let server = HTTPServer()
         server.delegate = delegate
         server.listen(port: port, errorHandler: errorHandler)
@@ -179,7 +179,7 @@ public class HTTPServer: Server {
 
                 socketManager.handle(socket: clientSocket,
                                      processor: IncomingHTTPSocketProcessor(socket: clientSocket,
-                                                        using: delegate ?? HTTPServer.dummyServerDelegate))
+                                                        using: delegate ?? HTTPServer.dummyResponseCreating))
             } catch let error {
                 if self.state == .stopped {
                     if let socketError = error as? Socket.Error {
@@ -269,10 +269,10 @@ public class HTTPServer: Server {
         ListenerGroup.waitForListeners()
     }
     
-    /// A Dummy `ServerDelegate` used when the user didn't supply a delegate, but has registerd
-    /// at least one ConnectionUpgradeFactory. This `ServerDelegate` will simply return 404 for
+    /// A Dummy `ResponseCreating` used when the user didn't supply a delegate, but has registerd
+    /// at least one ConnectionUpgradeFactory. This `ResponseCreating` will simply return 404 for
     /// any requests it is asked to process.
-    private class HTTPDummyServerDelegate: ServerDelegate {
+    private class HTTPDummyResponseCreating: ResponseCreating {
         func serve(req: HTTPRequest, res: HTTPResponseWriter) -> HTTPBodyProcessing {
             res.writeResponse(HTTPResponse(httpVersion: req.httpVersion,
                                            status: .notFound,

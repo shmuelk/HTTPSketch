@@ -70,9 +70,9 @@ struct URLParser {
 }
 
 struct Router {
-    var map: [Path: ResponseCreator]
+    var map: [Path: ResponseCreating]
 
-    func route(request: HTTPRequest) -> (PathComponents, ResponseCreator)? {
+    func route(request: HTTPRequest) -> (PathComponents, ResponseCreating)? {
         guard let verb = Verb(request.method) else {
             return nil
         }

@@ -8,7 +8,7 @@ class RouterTests: XCTestCase {
 
     func testRouting() {
         let path = Path(path: "/users/{id}", verb: .GET)
-        let resCreator = ResponseCreator()
+        let resCreator = EchoWebApp()
         let router = Router(map: [path: resCreator])
         let request = HTTPRequest(method: .GET, target: "/users/123?foo=bar&hello=world", httpVersion: (1, 1), headers: HTTPHeaders())
 

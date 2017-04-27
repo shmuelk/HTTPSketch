@@ -102,7 +102,7 @@ public class IncomingSocketManager  {
     /// Handle a new incoming socket
     ///
     /// - Parameter socket: the incoming socket to handle
-    /// - Parameter using: The ServerDelegate to actually handle the socket
+    /// - Parameter using: The ResponseCreating to actually handle the socket
     public func handle(socket: Socket, processor: IncomingSocketProcessor) {
         guard !stopped else {
             Log.warning("Cannot handle socket as socket manager has been stopped")

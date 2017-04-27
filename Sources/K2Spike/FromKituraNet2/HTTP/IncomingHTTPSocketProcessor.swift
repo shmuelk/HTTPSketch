@@ -22,14 +22,14 @@ import Socket
 
 /// This class processes the data sent by the client after the data was read. The data
 /// is parsed, filling in a `HTTPServerRequest` object. When the parsing is complete, the
-/// `ServerDelegate` is invoked.
+/// `ResponseCreating` is invoked.
 public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
     
     /// A back reference to the `IncomingSocketHandler` processing the socket that
     /// this `IncomingDataProcessor` is processing.
     public weak var handler: IncomingSocketHandler?
         
-    private weak var delegate: ServerDelegate?
+    private weak var delegate: ResponseCreating?
     
     /// Keep alive timeout for idle sockets in seconds
     static let keepAliveTimeout: TimeInterval = 60
@@ -68,7 +68,7 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
     /// Location in the buffer to start parsing from
     private var parseStartingFrom = 0
     
-    init(socket: Socket, using: ServerDelegate) {
+    init(socket: Socket, using: ResponseCreating) {
         delegate = using
         self.httpParser = HTTPParser()
         self.socket = socket
@@ -237,7 +237,7 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
         return HTTPRequest(method: method, target: target, httpVersion: httpVersion, headers: headers)
     }
 
-    /// Parsing headers has completed. Invoke the ServerDelegate to handle the request
+    /// Parsing headers has completed. Invoke the ResponseCreating to handle the request
     private func headersComplete() {
         // If the IncomingSocketHandler was freed, we can't handle the request
         guard let handler = handler else {
@@ -245,7 +245,7 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
             return
         }
         guard let delegate = delegate else {
-            Log.error("ServerDelegate not set or freed before parsing complete")
+            Log.error("ResponseCreating not set or freed before parsing complete")
             return
         }
 

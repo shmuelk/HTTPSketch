@@ -20,8 +20,8 @@ public protocol Server {
     /// A type that will be returned by static `listen` method
     associatedtype ServerType
 
-    /// A `ServerDelegate` used for request handling
-    var delegate: ServerDelegate? { get set }
+    /// A `ResponseCreating` used for request handling
+    var delegate: ResponseCreating? { get set }
 
     /// Port number for listening for new connections.
     var port: Int? { get }
@@ -40,7 +40,7 @@ public protocol Server {
     /// - Parameter delegate: the delegate handler for HTTP connections
     ///
     /// - Returns: a new Server instance
-    static func listen(on port: Int, delegate: ServerDelegate?) throws -> ServerType
+    static func listen(on port: Int, delegate: ResponseCreating?) throws -> ServerType
 
     /// Listen for connections on a socket.
     ///
@@ -57,7 +57,7 @@ public protocol Server {
     ///
     /// - Returns: a new Server instance
     @available(*, deprecated, message: "use 'listen(on:delegate:) throws' with 'server.failed(callback:)' instead")
-    static func listen(port: Int, delegate: ServerDelegate, errorHandler: ((Swift.Error) -> Void)?) -> ServerType
+    static func listen(port: Int, delegate: ResponseCreating, errorHandler: ((Swift.Error) -> Void)?) -> ServerType
 
     /// Stop listening for new connections.
     func stop()

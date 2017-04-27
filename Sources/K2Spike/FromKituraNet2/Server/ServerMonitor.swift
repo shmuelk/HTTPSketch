@@ -18,7 +18,7 @@
 /// A protocol for implementing a delegate to receive monitoring events from KituraNet.
 public protocol ServerMonitor {
     /// An event fired when a HTTP request has finished being parsed and is about
-    /// to be passed to the `ServerDelegate` for processing.
+    /// to be passed to the `ResponseCreating` for processing.
     ///
     /// - Parameter request: The `ServerRequest` class instance for the request starting.
     /// - Parameter response: The `ServerResponse` class instance for the request starting.
