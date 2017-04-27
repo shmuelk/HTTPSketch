@@ -102,8 +102,8 @@ public class IncomingSocketManager  {
     /// Handle a new incoming socket
     ///
     /// - Parameter socket: the incoming socket to handle
-    /// - Parameter using: The ResponseCreating to actually handle the socket
-    public func handle(socket: Socket, processor: IncomingSocketProcessor) {
+    /// - Parameter using: The ServerDelegate to actually handle the socket
+    public func handle(socket: Socket, delegate: ResponseCreating) {
         guard !stopped else {
             Log.warning("Cannot handle socket as socket manager has been stopped")
             return
@@ -112,7 +112,7 @@ public class IncomingSocketManager  {
         do {
             try socket.setBlocking(mode: false)
             
-            let handler = IncomingSocketHandler(socket: socket, using: processor, managedBy: self)
+            let handler = IncomingSocketHandler(socket: socket, delegate: delegate)
             socketHandlers[socket.socketfd] = handler
             
             #if !GCD_ASYNCH && os(Linux)
@@ -234,7 +234,7 @@ public class IncomingSocketManager  {
         
         let maxInterval = now.timeIntervalSinceReferenceDate
         for (fileDescriptor, handler) in socketHandlers {
-            if !removeAll && handler.processor != nil  &&  (handler.processor!.inProgress  ||  maxInterval < handler.processor!.keepAliveUntil) {
+            if !removeAll && (handler.inProgress  ||  maxInterval < handler.keepAliveUntil) {
                 continue
             }
             socketHandlers.removeValue(forKey: fileDescriptor)
