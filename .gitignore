@@ -69,3 +69,5 @@ fastlane/test_output
 /.build
 /Packages
 /*.xcodeproj
+*.DS_Store
+*.orig

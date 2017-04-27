@@ -30,8 +30,9 @@ public enum HTTPBodyChunk {
     case end /* body and trailers finished */
 }
 
-public enum HTTPMethod {
-    case custom(method: String)
+public enum HTTPMethod: String {
+    // case custom(method: String)
+    case UNKNOWN
     
     /* everything that http_parser.[ch] supports */
     case DELETE

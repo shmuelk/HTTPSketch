@@ -1,4 +1,3 @@
-import K2Spike
 
 enum Verb: String {
     case GET = "get"

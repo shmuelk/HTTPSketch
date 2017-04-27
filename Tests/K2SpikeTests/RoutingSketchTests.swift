@@ -1,6 +1,5 @@
 import XCTest
 @testable import K2Spike
-@testable import RoutingSketch
 
 class RouterTests: XCTestCase {
     static var allTests = [

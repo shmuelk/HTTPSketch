@@ -1,5 +1,4 @@
 import Foundation
-import K2Spike
 
 extension String {
     var isPathParameter: Bool {
