@@ -42,12 +42,11 @@ class K2SpikeTests: XCTestCase {
         HeliumLogger.use(.info)
         let receivedExpectation = self.expectation(description: "Received web response")
         
-        let port = 8080
         let server = HTTPServer()
         let creator = HelloWorldWebApp()
         server.started { 
             let session = URLSession(configuration: URLSessionConfiguration.default)
-            let url = URL(string: "http://localhost:\(port)/helloworld")!
+            let url = URL(string: "http://localhost:\(server.port!)/helloworld")!
             let dataTask = session.dataTask(with: url) { (responseBody, rawResponse, error) in
                 let response = rawResponse as? HTTPURLResponse
                 XCTAssertNil(error, "\(error!.localizedDescription)")
@@ -61,7 +60,7 @@ class K2SpikeTests: XCTestCase {
         }
         
         do {
-            try server.listen(on: port, delegate: creator)
+            try server.listen(on: 0, delegate: creator)
             self.waitForExpectations(timeout: 10) { (error) in
                 if let error = error {
                     XCTFail("\(error)")
@@ -69,22 +68,21 @@ class K2SpikeTests: XCTestCase {
             }
             server.stop()
         } catch {
-            XCTFail("Error listening on port \(port): \(error). Use server.failed(callback:) to handle")
+            XCTFail("Error listening on port \(0): \(error). Use server.failed(callback:) to handle")
         }
     }
     
     //FIXME: This test crashes with an illegal instruction
-    func testEchoEndToEnd() {
+    func testRequestEchoEndToEnd() {
         HeliumLogger.use(.info)
         let receivedExpectation = self.expectation(description: "Received web response")
         let testString="This is a test"
 
-        let port = 8080
         let server = HTTPServer()
         let creator = EchoWebApp()
         server.started {
             let session = URLSession(configuration: URLSessionConfiguration.default)
-            let url = URL(string: "http://localhost:\(port)/echo")!
+            let url = URL(string: "http://localhost:\(server.port!)/echo")!
             var request = URLRequest(url: url)
             request.httpBody = testString.data(using: .utf8)
             let dataTask = session.dataTask(with: request) { (responseBody, rawResponse, error) in
@@ -100,7 +98,7 @@ class K2SpikeTests: XCTestCase {
         }
         
         do {
-            try server.listen(on: port, delegate: creator)
+            try server.listen(on: 0, delegate: creator)
             self.waitForExpectations(timeout: 10) { (error) in
                 if let error = error {
                     XCTFail("\(error)")
@@ -108,7 +106,7 @@ class K2SpikeTests: XCTestCase {
             }
             server.stop()
         } catch {
-            XCTFail("Error listening on port \(port): \(error). Use server.failed(callback:) to handle")
+            XCTFail("Error listening on port \(0): \(error). Use server.failed(callback:) to handle")
         }
     }
 
@@ -118,6 +116,6 @@ class K2SpikeTests: XCTestCase {
         ("testHello", testHello),
         ("testResponseOK", testResponseOK),
         ("testHelloEndToEnd", testHelloEndToEnd),
-        ("testEchoEndToEnd", testEchoEndToEnd),
+        ("testRequestEchoEndToEnd", testRequestEchoEndToEnd),
         ]
 }
