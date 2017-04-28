@@ -16,6 +16,7 @@
 
 import CHttpParser
 import Foundation
+import Dispatch
 
 // MARK: HTTPParser
 
@@ -41,6 +42,9 @@ class HTTPParser {
     
     /// Chunk of body read in by the http_parser
     var bodyChunk: BufferList { return parseResults.bodyChunk }
+
+    /// Semaphore for notification of body events (body chunk parsed, body completed)
+    var bodyEvent: DispatchSemaphore { return parseResults.bodyEvent }
 
     /// Parsing of headers completed
     var headersCompleted: Bool { return parseResults.headersCompleted }
