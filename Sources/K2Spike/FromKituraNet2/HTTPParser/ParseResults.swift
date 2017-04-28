@@ -15,6 +15,7 @@
  */
 
 import Foundation
+import Dispatch
 
 /// class to hold results of callbacks from the http_parser
 class ParseResults {
@@ -53,7 +54,10 @@ class ParseResults {
     
     /// Chunk of body read in by the http_parser, filled by callbacks to onBody
     private(set) var bodyChunk = BufferList()
-    
+
+    /// Semaphore for notification of body events (body chunk parsed, body completed)
+    let bodyEvent = DispatchSemaphore(value: 0)
+
     init() {}
     
     /// Callback for when a piece of the body of the message was parsed
@@ -62,6 +66,7 @@ class ParseResults {
     /// - Parameter count: The number of bytes parsed
     func onBody (_ bytes: UnsafePointer<UInt8>, count: Int) {
         bodyChunk.append(bytes: bytes, length: count)
+        bodyEvent.signal()
     }
     
     /// Callback for when the headers have been finished being parsed.
@@ -113,6 +118,7 @@ class ParseResults {
     /// Callback for when the HTTP message is completely parsed
     func onMessageComplete() {
         messageCompleted = true
+        bodyEvent.signal()
     }
     
     /// Instructions for when reading URL portion

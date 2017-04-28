@@ -32,7 +32,15 @@ class ResponseWriter: HTTPResponseWriter {
         while !stop && !finished {
             switch chunkHandler {
             case .processBody(let handler):
-                let count = httpParser.bodyChunk.fill(data: &requestBodyBuffer)
+                var messageCompleted = httpParser.messageCompleted
+                var count = httpParser.bodyChunk.fill(data: &requestBodyBuffer)
+
+                if count == 0 && !messageCompleted {
+                    httpParser.bodyEvent.wait()
+                    messageCompleted = httpParser.messageCompleted
+                    count = httpParser.bodyChunk.fill(data: &requestBodyBuffer)
+                }
+
                 let data: DispatchData
                 if count > 0 {
                     data = requestBodyBuffer.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) -> DispatchData in
@@ -44,7 +52,7 @@ class ResponseWriter: HTTPResponseWriter {
                 }
 
                 handler(.chunk(data: data, finishedProcessing: {
-                    if count <= 0 {
+                    if count == 0 && messageCompleted {
                         finished = true
                         handler(.end, &stop)
                     }
