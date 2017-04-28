@@ -3,5 +3,5 @@ import XCTest
 
 XCTMain([
     testCase(K2SpikeTests.allTests),
-    testCase(RoutingSketchTests.allTests),
+    testCase(RouterTests.allTests),
 ])
