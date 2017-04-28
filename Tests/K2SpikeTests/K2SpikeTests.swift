@@ -7,8 +7,8 @@ class K2SpikeTests: XCTestCase {
     func testResponseOK() {
         let request = HTTPRequest(method: .GET, target:"/echo", httpVersion: (1, 1), headers: HTTPHeaders([("X-foo", "bar")]))
         let resolver = TestResponseResolver(request: request, requestBody: Data())
-        let creator = EchoWebApp()
-        resolver.resolveHandler(creator.serve)
+        let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/echo", verb:.GET): EchoWebApp()]))
+        resolver.resolveHandler(coordinator.handle)
         XCTAssertNotNil(resolver.response)
         XCTAssertNotNil(resolver.responseBody)
         XCTAssertEqual(HTTPResponseStatus.ok.code, resolver.response?.status.code ?? 0)
@@ -16,10 +16,10 @@ class K2SpikeTests: XCTestCase {
 
     func testEcho() {
         let testString="This is a test"
-        let request = HTTPRequest(method: .GET, target:"/echo", httpVersion: (1, 1), headers: HTTPHeaders([("X-foo", "bar")]))
+        let request = HTTPRequest(method: .POST, target:"/echo", httpVersion: (1, 1), headers: HTTPHeaders([("X-foo", "bar")]))
         let resolver = TestResponseResolver(request: request, requestBody: testString.data(using: .utf8)!)
-        let creator = EchoWebApp()
-        resolver.resolveHandler(creator.serve)
+        let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/echo", verb:.POST): EchoWebApp()]))
+        resolver.resolveHandler(coordinator.handle)
         XCTAssertNotNil(resolver.response)
         XCTAssertNotNil(resolver.responseBody)
         XCTAssertEqual(HTTPResponseStatus.ok.code, resolver.response?.status.code ?? 0)
@@ -29,8 +29,8 @@ class K2SpikeTests: XCTestCase {
     func testHello() {
         let request = HTTPRequest(method: .GET, target:"/helloworld", httpVersion: (1, 1), headers: HTTPHeaders([("X-foo", "bar")]))
         let resolver = TestResponseResolver(request: request, requestBody: Data())
-        let creator = HelloWorldWebApp()
-        resolver.resolveHandler(creator.serve)
+        let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldWebApp()]))
+        resolver.resolveHandler(coordinator.handle)
         XCTAssertNotNil(resolver.response)
         XCTAssertNotNil(resolver.responseBody)
         XCTAssertEqual(HTTPResponseStatus.ok.code, resolver.response?.status.code ?? 0)
@@ -43,8 +43,9 @@ class K2SpikeTests: XCTestCase {
         let receivedExpectation = self.expectation(description: "Received web response")
         
         let server = HTTPServer()
-        let creator = HelloWorldWebApp()
-        server.started { 
+        let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldWebApp()]))
+
+        server.started {
             let session = URLSession(configuration: URLSessionConfiguration.default)
             let url = URL(string: "http://localhost:\(server.port!)/helloworld")!
             let dataTask = session.dataTask(with: url) { (responseBody, rawResponse, error) in
@@ -60,7 +61,7 @@ class K2SpikeTests: XCTestCase {
         }
         
         do {
-            try server.listen(on: 0, delegate: creator)
+            try server.listen(on: 0, delegate: coordinator)
             self.waitForExpectations(timeout: 10) { (error) in
                 if let error = error {
                     XCTFail("\(error)")
@@ -79,7 +80,7 @@ class K2SpikeTests: XCTestCase {
         let testString="This is a test"
 
         let server = HTTPServer()
-        let creator = EchoWebApp()
+        let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/echo", verb:.POST): EchoWebApp()]))
         server.started {
             let session = URLSession(configuration: URLSessionConfiguration.default)
             let url = URL(string: "http://localhost:\(server.port!)/echo")!
@@ -99,7 +100,7 @@ class K2SpikeTests: XCTestCase {
         }
         
         do {
-            try server.listen(on: 0, delegate: creator)
+            try server.listen(on: 0, delegate: coordinator)
             self.waitForExpectations(timeout: 10) { (error) in
                 if let error = error {
                     XCTFail("\(error)")

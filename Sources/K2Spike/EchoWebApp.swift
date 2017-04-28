@@ -1,7 +1,7 @@
 import Foundation
 
 class EchoWebApp: ResponseCreating {
-    func serve(req: HTTPRequest, res: HTTPResponseWriter) -> HTTPBodyProcessing {
+    func serve(req: HTTPRequest, context: RequestContext, res: HTTPResponseWriter ) -> HTTPBodyProcessing {
         //Assume the router gave us the right request - at least for now
         res.writeResponse(HTTPResponse(httpVersion: req.httpVersion,
                                        status: .ok,

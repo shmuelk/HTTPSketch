@@ -66,7 +66,7 @@ enum Verb: String {
 //    var paths: [String: PathItem]
 //}
 
-struct Path: Hashable {
+public struct Path: Hashable {
     var path: String
     var verb: Verb
 
@@ -74,7 +74,7 @@ struct Path: Hashable {
     ///
     /// Hash values are not guaranteed to be equal across different executions of
     /// your program. Do not save hash values to use during a future execution.
-    var hashValue: Int {
+    public var hashValue: Int {
         return "\(verb) - \(path)".hashValue
     }
 
@@ -86,7 +86,7 @@ struct Path: Hashable {
     /// - Parameters:
     ///   - lhs: A value to compare.
     ///   - rhs: Another value to compare.
-    static func ==(lhs: Path, rhs: Path) -> Bool {
+    public static func ==(lhs: Path, rhs: Path) -> Bool {
         return lhs.path == rhs.path && lhs.verb == rhs.verb
     }
 }
