@@ -84,6 +84,7 @@ class K2SpikeTests: XCTestCase {
             let session = URLSession(configuration: URLSessionConfiguration.default)
             let url = URL(string: "http://localhost:\(server.port!)/echo")!
             var request = URLRequest(url: url)
+            request.httpMethod = "POST"
             request.httpBody = testString.data(using: .utf8)
             let dataTask = session.dataTask(with: request) { (responseBody, rawResponse, error) in
                 let response = rawResponse as? HTTPURLResponse
