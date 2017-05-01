@@ -83,7 +83,7 @@ public class IncomingSocketHandler {
     var fileDescriptor: Int32 { return socket.socketfd }
 
     /// Keep alive timeout for idle sockets in seconds
-    static let keepAliveTimeout: TimeInterval = 60
+    static let keepAliveTimeout: TimeInterval = 15
 
     /// A flag indicating that the client has requested that the socket be kept alive
     private(set) var clientRequestedKeepAlive = false
@@ -126,17 +126,22 @@ public class IncomingSocketHandler {
                                                          queue: socketReaderQueue(fd: socket.socketfd))
         
             readerSource.setEventHandler() {
-                _ = self.handleRead()
+                // The event handler gets called with readerSource.data == 0 continually even when there
+                // is no incoming data. Till we figure out how to set the dispatch event mask to filter out
+                // this condition, we just add a check for it.
+                if self.readerSource.data != 0 {
+                    self.handleRead()
+                }
             }
             readerSource.setCancelHandler(handler: self.handleCancel)
             readerSource.resume()
         #endif
     }
-    
+
     /// Read in the available data and hand off to common processing code
     ///
     /// - Returns: true if the data read in was processed
-    func handleRead() -> Bool {
+    @discardableResult func handleRead() -> Bool {
         handleReadInProgress = true
         defer {
             handleReadInProgress = false // needs to be unset before calling close() as it is part of the guard in close()
@@ -161,13 +166,6 @@ public class IncomingSocketHandler {
             }
             if  readBuffer.length > 0  {
                 result = handleReadHelper()
-            }
-            else {
-                if socket.remoteConnectionClosed  {
-                    Log.debug("socket remoteConnectionClosed in handleRead()")
-                    socketClosed()
-                    preparingToClose = true
-                }
             }
         }
         catch let error as Socket.Error {
@@ -420,6 +418,16 @@ public class IncomingSocketHandler {
         keepAliveUntil = 0.0
     }
 
+    /// A socket can be kept alive for future requests. Set it up for future requests and mark how long it can be idle.
+    func resetForKeepAlive() {
+        state = .reset
+        numberOfRequests -= 1
+        readBuffer.length = 0
+
+        inProgress = false
+        keepAliveUntil = Date(timeIntervalSinceNow: IncomingSocketHandler.keepAliveTimeout).timeIntervalSinceReferenceDate
+    }
+
     /// Process data read from the socket. It is either passed to the HTTP parser or
     /// it is saved in the Pseudo synchronous reader to be read later on.
     ///
@@ -574,14 +582,5 @@ public class IncomingSocketHandler {
                 responseWriter.resolveHandler(delegate)
             }
         }
-    }
-
-    /// A socket can be kept alive for future requests. Set it up for future requests and mark how long it can be idle.
-    func resetForKeepAlive() {
-        state = .reset
-        numberOfRequests -= 1
-        inProgress = false
-        keepAliveUntil = Date(timeIntervalSinceNow: IncomingSocketHandler.keepAliveTimeout).timeIntervalSinceReferenceDate
-        handleBufferedReadData()
     }
 }

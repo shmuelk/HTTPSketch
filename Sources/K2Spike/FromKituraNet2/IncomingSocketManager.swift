@@ -36,15 +36,43 @@ import Socket
 ///      (one pair per incomng socket)
 ///   3. Cleaning up idle sockets, when new incoming sockets arrive.
 public class IncomingSocketManager  {
-    
+
+    struct ThreadSafeSocketHandlers: Sequence {
+        private let lock = NSLock()
+        private var socketHandlers = [Int32: IncomingSocketHandler]()
+
+        subscript(key: Int32) -> IncomingSocketHandler? {
+            get {
+                lock.lock()
+                defer { lock.unlock() }
+                return socketHandlers[key]
+            }
+
+            set(value) {
+                lock.lock()
+                defer { lock.unlock() }
+                socketHandlers[key] = value
+            }
+        }
+
+        @discardableResult mutating func removeValue(forKey key: Int32) -> IncomingSocketHandler? {
+            lock.lock()
+            defer { lock.unlock() }
+            return socketHandlers.removeValue(forKey: key)
+        }
+
+        func makeIterator() -> DictionaryIterator<Int32, IncomingSocketHandler> {
+            lock.lock()
+            defer { lock.unlock() }
+            return socketHandlers.makeIterator()
+        }
+    }
+
     /// A mapping from socket file descriptor to IncomingSocketHandler
-    var socketHandlers = [Int32: IncomingSocketHandler]()
-    
-    /// Interval at which to check for idle sockets to close
-    let keepAliveIdleCheckingInterval: TimeInterval = 5.0
-    
-    /// The last time we checked for an idle socket
-    var keepAliveIdleLastTimeChecked = Date()
+    private var socketHandlers = ThreadSafeSocketHandlers()
+
+    /// Timer to periodically remove idle sockets from the socketHandlers map
+    private var idleSocketTimer: DispatchSourceTimer?
 
     /// Flag indicating when we are done using this socket manager, so we can clean up
     private var stopped = false
@@ -79,12 +107,24 @@ public class IncomingSocketManager  {
                 queues[i].async() { [unowned self] in self.process(epollDescriptor: self.epollDescriptors[i],
                                                                    runRemoveIdleSockets: i == 0) }
             }
+
+            idleSocketTimer = scheduledRemoveIdleSockets()
         }
     #else
         public init() {
-            
+            idleSocketTimer = scheduledRemoveIdleSockets()
         }
     #endif
+
+    private func scheduledRemoveIdleSockets() -> DispatchSourceTimer {
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "idleSocketTimer"))
+        timer.scheduleRepeating(deadline: .now(), interval: .seconds(Int(IncomingSocketHandler.keepAliveTimeout)))
+        timer.setEventHandler { [weak self] in
+            self?.removeIdleSockets()
+        }
+        timer.resume()
+        return timer
+    }
 
     deinit {
         stop()
@@ -93,6 +133,9 @@ public class IncomingSocketManager  {
     /// Stop this socket manager instance and cleanup resources.
     /// If using epoll, it also ends the epoll process() task, closes the epoll fd and releases its thread.
     public func stop() {
+        idleSocketTimer?.cancel()
+        idleSocketTimer = nil
+
         stopped = true
         #if GCD_ASYNCH || !os(Linux)
             removeIdleSockets(removeAll: true)
@@ -128,8 +171,6 @@ public class IncomingSocketManager  {
         catch let error {
             Log.error("Failed to make incoming socket (File Descriptor=\(socket.socketfd)) non-blocking. Error = \(error)")
         }
-        
-        removeIdleSockets()
     }
     
     #if !GCD_ASYNCH && os(Linux)
@@ -229,12 +270,9 @@ public class IncomingSocketManager  {
     ///
     /// - Parameter allSockets: flag indicating if the manager is shutting down, and we should cleanup all sockets, not just idle ones
     private func removeIdleSockets(removeAll: Bool = false) {
-        let now = Date()
-        guard removeAll || now.timeIntervalSince(keepAliveIdleLastTimeChecked) > keepAliveIdleCheckingInterval  else { return }
-        
-        let maxInterval = now.timeIntervalSinceReferenceDate
+        let now = Date().timeIntervalSinceReferenceDate
         for (fileDescriptor, handler) in socketHandlers {
-            if !removeAll && (handler.inProgress  ||  maxInterval < handler.keepAliveUntil) {
+            if !removeAll && (handler.inProgress  ||  now < handler.keepAliveUntil) {
                 continue
             }
             socketHandlers.removeValue(forKey: fileDescriptor)
@@ -251,7 +289,6 @@ public class IncomingSocketManager  {
             
             handler.prepareToClose()
         }
-        keepAliveIdleLastTimeChecked = Date()
     }
     
     /// Private method to return the last error based on the value of errno.

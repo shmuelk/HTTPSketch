@@ -198,7 +198,12 @@ class ResponseWriter: HTTPResponseWriter {
             }
         }
 
-        socketHandler.prepareToClose()
+        if isKeepAlive {
+            socketHandler.resetForKeepAlive()
+        } else {
+            socketHandler.prepareToClose()
+        }
+
         completion(Result(completion: ()))
     }
 
