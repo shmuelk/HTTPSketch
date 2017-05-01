@@ -34,7 +34,7 @@ public struct HTTPHeaders {
         return original.makeIterator()
     }
 
-    init(_ headers: [(String, String)] = []) {
+    public init(_ headers: [(String, String)] = []) {
         original = headers
         description=""
         storage = [String:[String]]()

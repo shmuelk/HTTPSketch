@@ -51,7 +51,7 @@ public class IncomingSocketHandler {
     #endif
 
     let socket: Socket
-    private let delegate: RequestHandlingCoordinator
+    private let delegate: WebApp
 
     private let readBuffer = NSMutableData()
     private let writeBuffer = NSMutableData()
@@ -117,7 +117,7 @@ public class IncomingSocketHandler {
     /// Location in the buffer to start parsing from
     private var parseStartingFrom = 0
 
-    init(socket: Socket, delegate: RequestHandlingCoordinator) {
+    init(socket: Socket, delegate: @escaping WebApp) {
         self.socket = socket
         self.delegate = delegate
 
@@ -571,7 +571,7 @@ public class IncomingSocketHandler {
 
         DispatchQueue.global().async() { [weak self] in
             if let delegate = self?.delegate {
-                responseWriter.resolveHandler(delegate.handle(req:res:))
+                responseWriter.resolveHandler(delegate)
             }
         }
     }

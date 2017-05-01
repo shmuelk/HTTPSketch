@@ -103,7 +103,7 @@ public class IncomingSocketManager  {
     ///
     /// - Parameter socket: the incoming socket to handle
     /// - Parameter using: The ServerDelegate to actually handle the socket
-    public func handle(socket: Socket, delegate: RequestHandlingCoordinator) {
+    public func handle(socket: Socket, delegate: @escaping WebApp) {
         guard !stopped else {
             Log.warning("Cannot handle socket as socket manager has been stopped")
             return

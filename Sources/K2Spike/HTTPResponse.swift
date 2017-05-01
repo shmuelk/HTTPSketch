@@ -14,6 +14,16 @@ public struct HTTPResponse {
     public var status: HTTPResponseStatus
     public var transferEncoding: HTTPTransferEncoding
     public var headers: HTTPHeaders
+    
+    public init (httpVersion: HTTPVersion,
+                 status: HTTPResponseStatus,
+        transferEncoding: HTTPTransferEncoding,
+        headers: HTTPHeaders) {
+        self.httpVersion = httpVersion
+        self.status = status
+        self.transferEncoding = transferEncoding
+        self.headers = headers
+    }
 }
 
 public protocol HTTPResponseWriter : class {

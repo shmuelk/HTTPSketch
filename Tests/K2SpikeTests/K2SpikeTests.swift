@@ -61,7 +61,7 @@ class K2SpikeTests: XCTestCase {
         }
         
         do {
-            try server.listen(on: 0, delegate: coordinator)
+            try server.listen(on: 0, delegate: coordinator.handle)
             self.waitForExpectations(timeout: 10) { (error) in
                 if let error = error {
                     XCTFail("\(error)")
@@ -100,7 +100,7 @@ class K2SpikeTests: XCTestCase {
         }
         
         do {
-            try server.listen(on: 0, delegate: coordinator)
+            try server.listen(on: 0, delegate: coordinator.handle)
             self.waitForExpectations(timeout: 10) { (error) in
                 if let error = error {
                     XCTFail("\(error)")
