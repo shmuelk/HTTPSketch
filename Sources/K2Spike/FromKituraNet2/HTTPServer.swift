@@ -53,9 +53,10 @@ public class HTTPServer {
 
     /// SSL cert configs for handling client requests
     public var sslConfig: SSLService.Configuration?
-
-    fileprivate let lifecycleListener = ServerLifecycleListener()
     
+    /// Group for waiting on listeners
+    private static let group = DispatchGroup()
+
     public init() {
         #if os(Linux)
             // On Linux, it is not possible to set SO_NOSIGPIPE on the socket, nor is it possible
@@ -107,18 +108,15 @@ public class HTTPServer {
 
             // set synchronously to avoid contention in back to back server start/stop calls
             self.state = .started
-            self.lifecycleListener.performStartCallbacks()
 
             let queuedBlock = DispatchWorkItem(block: {
                 self.listen(listenSocket: socket, socketManager: socketManager, delegate: delegate)
-                self.lifecycleListener.performStopCallbacks()
             })
 
-            ListenerGroup.enqueueAsynchronously(on: DispatchQueue.global(), block: queuedBlock)
+            DispatchQueue.global().async(group: DispatchGroup(), execute: queuedBlock)
         }
         catch let error {
             self.state = .failed
-            self.lifecycleListener.performFailCallbacks(with: error)
             throw error
         }
     }
@@ -157,7 +155,6 @@ public class HTTPServer {
                     }
                 } else {
                     Log.error("Error accepting client connection: \(error)")
-                    self.lifecycleListener.performClientConnectionFailCallbacks(with: error)
                 }
             }
         } while self.state == .started && listenSocket.isListening
@@ -179,57 +176,4 @@ public class HTTPServer {
         socketManager = nil
     }
 
-    /// Add a new listener for server beeing started
-    ///
-    /// - Parameter callback: The listener callback that will run on server successfull start-up
-    ///
-    /// - Returns: a `HTTPServer` instance
-    @discardableResult
-    public func started(callback: @escaping () -> Void) -> Self {
-        self.lifecycleListener.addStartCallback(perform: self.state == .started, callback)
-        return self
-    }
-
-    /// Add a new listener for server beeing stopped
-    ///
-    /// - Parameter callback: The listener callback that will run when server stops
-    ///
-    /// - Returns: a `HTTPServer` instance
-    @discardableResult
-    public func stopped(callback: @escaping () -> Void) -> Self {
-        self.lifecycleListener.addStopCallback(perform: self.state == .stopped, callback)
-        return self
-    }
-
-    /// Add a new listener for server throwing an error
-    ///
-    /// - Parameter callback: The listener callback that will run when server throws an error
-    ///
-    /// - Returns: a `HTTPServer` instance
-    @discardableResult
-    public func failed(callback: @escaping (Swift.Error) -> Void) -> Self {
-        self.lifecycleListener.addFailCallback(callback)
-        return self
-    }
-
-    /// Add a new listener for when listenSocket.acceptClientConnection throws an error
-    ///
-    /// - Parameter callback: The listener callback that will run
-    ///
-    /// - Returns: a Server instance
-    @discardableResult
-    public func clientConnectionFailed(callback: @escaping (Swift.Error) -> Void) -> Self {
-        self.lifecycleListener.addClientConnectionFailCallback(callback)
-        return self
-    }
-
-    /// Wait for all of the listeners to stop.
-    ///
-    /// - todo: Note that this calls the ListenerGroup object, and is left in for
-    /// backwards compability reasons. Can be safely removed once IBM-Swift/Kitura/Kitura.swift
-    /// is patched to directly talk to ListenerGroup.
-    @available(*, deprecated, message:"Will be removed in future versions. Use ListenerGroup.waitForListeners() directly.")
-    public static func waitForListeners() {
-        ListenerGroup.waitForListeners()
-    }
 }

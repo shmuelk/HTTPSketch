@@ -42,10 +42,10 @@ class K2SpikeTests: XCTestCase {
         HeliumLogger.use(.info)
         let receivedExpectation = self.expectation(description: "Received web response")
         
-        let server = HTTPServer()
         let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldWebApp()]))
 
-        server.started {
+        do {
+            let server = try HTTPServer.listen(on: 0, delegate: coordinator.handle)
             let session = URLSession(configuration: URLSessionConfiguration.default)
             let url = URL(string: "http://localhost:\(server.port!)/helloworld")!
             let dataTask = session.dataTask(with: url) { (responseBody, rawResponse, error) in
@@ -58,10 +58,6 @@ class K2SpikeTests: XCTestCase {
                 receivedExpectation.fulfill()
             }
             dataTask.resume()
-        }
-        
-        do {
-            try server.listen(on: 0, delegate: coordinator.handle)
             self.waitForExpectations(timeout: 10) { (error) in
                 if let error = error {
                     XCTFail("\(error)")
@@ -79,9 +75,10 @@ class K2SpikeTests: XCTestCase {
         let receivedExpectation = self.expectation(description: "Received web response")
         let testString="This is a test"
 
-        let server = HTTPServer()
         let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/echo", verb:.POST): EchoWebApp()]))
-        server.started {
+        
+        do {
+            let server = try HTTPServer.listen(on: 0, delegate: coordinator.handle)
             let session = URLSession(configuration: URLSessionConfiguration.default)
             let url = URL(string: "http://localhost:\(server.port!)/echo")!
             var request = URLRequest(url: url)
@@ -97,10 +94,6 @@ class K2SpikeTests: XCTestCase {
                 receivedExpectation.fulfill()
             }
             dataTask.resume()
-        }
-        
-        do {
-            try server.listen(on: 0, delegate: coordinator.handle)
             self.waitForExpectations(timeout: 10) { (error) in
                 if let error = error {
                     XCTFail("\(error)")
