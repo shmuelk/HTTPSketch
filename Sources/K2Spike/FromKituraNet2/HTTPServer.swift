@@ -19,7 +19,6 @@ import Foundation
 
 import LoggerAPI
 import Socket
-import SSLService
 
 #if os(Linux)
   import Signals
@@ -50,9 +49,6 @@ public class HTTPServer {
 
     /// Incoming socket handler
     private var socketManager: IncomingSocketManager?
-
-    /// SSL cert configs for handling client requests
-    public var sslConfig: SSLService.Configuration?
     
     /// Group for waiting on listeners
     private static let group = DispatchGroup()
@@ -78,12 +74,6 @@ public class HTTPServer {
         do {
             let socket = try Socket.create()
             self.listenSocket = socket
-
-            // If SSL config has been created,
-            // create and attach the SSLService delegate to the socket
-            if let sslConfig = sslConfig {
-                socket.delegate = try SSLService(usingConfiguration: sslConfig);
-            }
 
             try socket.listen(on: port, maxBacklogSize: maxPendingConnections)
 
