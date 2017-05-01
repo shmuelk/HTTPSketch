@@ -72,7 +72,7 @@ public class HTTPServer {
     ///
     /// - Parameter on: port number for new connections (eg. 8080)
     /// - Parameter delegate: the delegate handler for HTTP connections
-    public func listen(on port: Int, delegate: ResponseCreating) throws {
+    public func listen(on port: Int, delegate: @escaping WebApp) throws {
         self.port = port
         do {
             let socket = try Socket.create()
@@ -129,14 +129,14 @@ public class HTTPServer {
     /// - Parameter delegate: the delegate handler for HTTP connections
     ///
     /// - Returns: a new `HTTPServer` instance
-    public static func listen(on port: Int, delegate: ResponseCreating) throws -> HTTPServer {
+    public static func listen(on port: Int, delegate: @escaping WebApp) throws -> HTTPServer {
         let server = HTTPServer()
         try server.listen(on: port, delegate: delegate)
         return server
     }
 
     /// Listen on socket while server is started and pass on to socketManager to handle
-    private func listen(listenSocket: Socket, socketManager: IncomingSocketManager, delegate: ResponseCreating) {
+    private func listen(listenSocket: Socket, socketManager: IncomingSocketManager, delegate: @escaping WebApp) {
         repeat {
             do {
                 let clientSocket = try listenSocket.acceptClientConnection()

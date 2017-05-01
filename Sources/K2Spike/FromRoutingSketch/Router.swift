@@ -69,7 +69,7 @@ struct URLParser {
     }
 }
 
-struct Router {
+public struct Router {
     var map: [Path: ResponseCreating]
 
     func route(request: HTTPRequest) -> (PathComponents, ResponseCreating)? {

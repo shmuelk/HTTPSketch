@@ -13,7 +13,7 @@ public typealias HTTPVersion = (Int, Int)
 public typealias WebApp = (HTTPRequest, HTTPResponseWriter) -> HTTPBodyProcessing
 
 public protocol ResponseCreating: class {
-    func serve(req: HTTPRequest, res: HTTPResponseWriter) -> HTTPBodyProcessing
+    func serve(req: HTTPRequest, context: RequestContext, res: HTTPResponseWriter ) -> HTTPBodyProcessing
 }
 
 public struct HTTPHeaders {
@@ -34,7 +34,7 @@ public struct HTTPHeaders {
         return original.makeIterator()
     }
 
-    init(_ headers: [(String, String)] = []) {
+    public init(_ headers: [(String, String)] = []) {
         original = headers
         description=""
         storage = [String:[String]]()
@@ -65,3 +65,20 @@ public enum Result<POSIXError, Void> {
     }
 }
 
+public protocol RequestStructParser {
+    associatedtype T: Any
+    func createStruct(path:String, queryParams:String?, Body:Data?) -> T?
+}
+
+public struct RequestContext {
+    let storage: [String: Any]
+    init(dict:[String:Any]) {
+        storage = dict
+    }
+    
+    func adding(dict:[String:Any]) -> RequestContext {
+        var newstorage = storage
+        dict.forEach{ newstorage[$0] = $1 }
+        return RequestContext(dict: newstorage)
+    }
+}
