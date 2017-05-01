@@ -69,7 +69,6 @@ class K2SpikeTests: XCTestCase {
         }
     }
     
-    //FIXME: This test crashes with an illegal instruction
     func testRequestEchoEndToEnd() {
         HeliumLogger.use(.info)
         let receivedExpectation = self.expectation(description: "Received web response")
@@ -105,6 +104,67 @@ class K2SpikeTests: XCTestCase {
         }
     }
 
+    func testHelloCookieEndToEnd() {
+        HeliumLogger.use(.info)
+        let receivedExpectation = self.expectation(description: "Received web response")
+        
+        let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldWebApp()]))
+        let badCookieHandler = BadCookieWritingMiddleware(cookieName: "OurCookie")
+        
+        coordinator.addPreProcessor(badCookieHandler.preProcess)
+        coordinator.addPostProcessor(badCookieHandler.postProcess)
+        
+        do {
+            let server = try HTTPServer.listen(on: 0, delegate: coordinator.handle)
+            let session = URLSession(configuration: URLSessionConfiguration.default)
+            let url = URL(string: "http://localhost:\(server.port!)/helloworld")!
+            let dataTask = session.dataTask(with: url) { (responseBody, rawResponse, error) in
+                let response = rawResponse as? HTTPURLResponse
+                XCTAssertNil(error, "\(error!.localizedDescription)")
+                XCTAssertNotNil(response)
+                XCTAssertNotNil(responseBody)
+                XCTAssertEqual(Int(HTTPResponseStatus.ok.code), response?.statusCode ?? 0)
+                XCTAssertEqual("Hello, World!", String(data: responseBody ?? Data(), encoding: .utf8) ?? "Nil")
+                #if os(Linux)
+                    //print("\(response!.allHeaderFields.debugDescription)")
+                    XCTAssertNotNil(response?.allHeaderFields["Set-Cookie"])
+                    let ourCookie = response?.allHeaderFields["Set-Cookie"] as? String
+                    let ourCookieString = ourCookie ?? ""
+                    let index = ourCookieString.index(ourCookieString.startIndex, offsetBy: 10)
+                    XCTAssertTrue(ourCookieString.substring(to: index) == "OurCookie=")
+                #else
+                    let fields = response?.allHeaderFields as? [String : String] ?? [:]
+                    let cookies = HTTPCookie.cookies(withResponseHeaderFields: fields, for: url)
+                    XCTAssertNotNil(cookies)
+                    print("\(cookies.debugDescription)")
+                    var ourCookie: HTTPCookie? = nil
+                    var missingCookie: HTTPCookie? = nil //We should not find this
+                    for cookie in cookies {
+                        if cookie.name == "OurCookie" {
+                            ourCookie = cookie
+                        }
+                        if cookie.name == "MissingCookie" {
+                            missingCookie = cookie
+                        }
+                    }
+                    
+                    XCTAssertNotNil(ourCookie)
+                    XCTAssertNil(missingCookie)
+                #endif
+                receivedExpectation.fulfill()
+            }
+            dataTask.resume()
+            self.waitForExpectations(timeout: 10) { (error) in
+                if let error = error {
+                    XCTFail("\(error)")
+                }
+            }
+            server.stop()
+        } catch {
+            XCTFail("Error listening on port \(0): \(error). Use server.failed(callback:) to handle")
+        }
+    }
+
     
     static var allTests = [
         ("testEcho", testEcho),
@@ -112,5 +172,6 @@ class K2SpikeTests: XCTestCase {
         ("testResponseOK", testResponseOK),
         ("testHelloEndToEnd", testHelloEndToEnd),
         ("testRequestEchoEndToEnd", testRequestEchoEndToEnd),
+        ("testHelloCookieEndToEnd", testHelloCookieEndToEnd),
         ]
 }
