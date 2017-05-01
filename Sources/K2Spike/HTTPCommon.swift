@@ -18,22 +18,31 @@ public protocol ResponseCreating: class {
 
 public struct HTTPHeaders {
     var storage: [String:[String]]     /* lower cased keys */
-    let original: [(String, String)]   /* original casing */
-  let description: String
-
-    subscript(key: String) -> [String] {
+    var original: [(String, String)]   /* original casing */
+    let description: String
+    
+    public subscript(key: String) -> [String] {
         get {
             return storage[key] ?? []
         }
         set (value) {
-            storage[key] = value
+            original.append((key, value.first!))
+            storage = [String:[String]]()
+            makeIterator().forEach { (element: (String, String)) in
+                let key = element.0.lowercased()
+                let val = element.1
+                
+                var existing = storage[key] ?? []
+                existing.append(val)
+                storage[key] = existing
+            }
         }
     }
     
     func makeIterator() -> IndexingIterator<Array<(String, String)>> {
         return original.makeIterator()
     }
-
+    
     public init(_ headers: [(String, String)] = []) {
         original = headers
         description=""
@@ -76,7 +85,13 @@ public struct RequestContext {
         storage = dict
     }
     
-    func adding(dict:[String:Any]) -> RequestContext {
+    public subscript(key: String) -> Any? {
+        get {
+            return storage[key]
+        }
+    }
+    
+    public func adding(dict:[String:Any]) -> RequestContext {
         var newstorage = storage
         dict.forEach{ newstorage[$0] = $1 }
         return RequestContext(dict: newstorage)
