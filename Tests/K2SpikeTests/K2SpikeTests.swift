@@ -36,7 +36,25 @@ class K2SpikeTests: XCTestCase {
         XCTAssertEqual(HTTPResponseStatus.ok.code, resolver.response?.status.code ?? 0)
         XCTAssertEqual("Hello, World!", String(data: resolver.responseBody ?? Data(), encoding: .utf8) ?? "Nil")
     }
-
+    
+    func testSimpleHello() {
+        let request = HTTPRequest(method: .GET, target:"/helloworld", httpVersion: (1, 1), headers: HTTPHeaders([("X-foo", "bar")]))
+        let resolver = TestResponseResolver(request: request, requestBody: Data())
+        let simpleHelloWebApp = SimpleResponseCreator { (request, context, body) -> (reponse: HTTPResponse, responseBody: Data) in
+            return (HTTPResponse(httpVersion: request.httpVersion,
+                                 status: .ok,
+                                 transferEncoding: .chunked,
+                                 headers: HTTPHeaders([("X-foo", "bar")])),
+                    "Hello, World!".data(using: .utf8)!)
+            
+        }
+        let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): simpleHelloWebApp]))
+        resolver.resolveHandler(coordinator.handle)
+        XCTAssertNotNil(resolver.response)
+        XCTAssertNotNil(resolver.responseBody)
+        XCTAssertEqual(HTTPResponseStatus.ok.code, resolver.response?.status.code ?? 0)
+        XCTAssertEqual("Hello, World!", String(data: resolver.responseBody ?? Data(), encoding: .utf8) ?? "Nil")
+    }
 
     func testHelloEndToEnd() {
         HeliumLogger.use(.info)
@@ -68,6 +86,46 @@ class K2SpikeTests: XCTestCase {
             XCTFail("Error listening on port \(0): \(error). Use server.failed(callback:) to handle")
         }
     }
+    
+    func testSimpleHelloEndToEnd() {
+        HeliumLogger.use(.info)
+        let receivedExpectation = self.expectation(description: "Received web response")
+        let simpleHelloWebApp = SimpleResponseCreator { (request, context, body) -> (reponse: HTTPResponse, responseBody: Data) in
+            return (HTTPResponse(httpVersion: request.httpVersion,
+                                 status: .ok,
+                                 transferEncoding: .chunked,
+                                 headers: HTTPHeaders([("X-foo", "bar")])),
+                    "Hello, World!".data(using: .utf8)!)
+            
+        }
+
+        let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): simpleHelloWebApp]))
+        
+        do {
+            let server = try HTTPServer.listen(on: 0, delegate: coordinator.handle)
+            let session = URLSession(configuration: URLSessionConfiguration.default)
+            let url = URL(string: "http://localhost:\(server.port!)/helloworld")!
+            let dataTask = session.dataTask(with: url) { (responseBody, rawResponse, error) in
+                let response = rawResponse as? HTTPURLResponse
+                XCTAssertNil(error, "\(error!.localizedDescription)")
+                XCTAssertNotNil(response)
+                XCTAssertNotNil(responseBody)
+                XCTAssertEqual(Int(HTTPResponseStatus.ok.code), response?.statusCode ?? 0)
+                XCTAssertEqual("Hello, World!", String(data: responseBody ?? Data(), encoding: .utf8) ?? "Nil")
+                receivedExpectation.fulfill()
+            }
+            dataTask.resume()
+            self.waitForExpectations(timeout: 10) { (error) in
+                if let error = error {
+                    XCTFail("\(error)")
+                }
+            }
+            server.stop()
+        } catch {
+            XCTFail("Error listening on port \(0): \(error). Use server.failed(callback:) to handle")
+        }
+    }
+
     
     func testRequestEchoEndToEnd() {
         HeliumLogger.use(.info)
@@ -169,8 +227,10 @@ class K2SpikeTests: XCTestCase {
     static var allTests = [
         ("testEcho", testEcho),
         ("testHello", testHello),
+        ("testSimpleHello", testSimpleHello),
         ("testResponseOK", testResponseOK),
         ("testHelloEndToEnd", testHelloEndToEnd),
+        ("testSimpleHelloEndToEnd", testSimpleHelloEndToEnd),
         ("testRequestEchoEndToEnd", testRequestEchoEndToEnd),
         ("testHelloCookieEndToEnd", testHelloCookieEndToEnd),
         ]

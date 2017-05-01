@@ -35,6 +35,7 @@ class TestResponseResolver: HTTPResponseWriter {
                 handler(.chunk(data: self.requestBody, finishedProcessing: {
                     finished=true
                 }), &stop)
+                handler(.end, &stop)
             case .discardBody:
                 finished=true
             }
