@@ -41,6 +41,8 @@ public class IncomingSocketManager  {
         private let lock = DispatchSemaphore(value: 1)
         private var socketHandlers = [Int32: IncomingSocketHandler]()
 
+        var count: Int { return socketHandlers.count }
+
         subscript(key: Int32) -> IncomingSocketHandler? {
             get {
                 lock.wait()
@@ -69,7 +71,7 @@ public class IncomingSocketManager  {
     }
 
     /// A mapping from socket file descriptor to IncomingSocketHandler
-    private var socketHandlers = ThreadSafeSocketHandlers()
+    var socketHandlers = ThreadSafeSocketHandlers()
 
     /// Timer to periodically remove idle sockets from the socketHandlers map
     private var idleSocketTimer: DispatchSourceTimer?

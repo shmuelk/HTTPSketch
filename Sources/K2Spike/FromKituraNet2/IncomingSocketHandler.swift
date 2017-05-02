@@ -34,14 +34,14 @@ import Socket
 ///        DispatchSource is used, as it is used on OSX.
 public class IncomingSocketHandler {
     
-    static let socketWriterQueue = DispatchQueue(label: "Socket Writer")
+    private static let socketWriterQueue = DispatchQueue(label: "Socket Writer")
     
     #if os(OSX) || os(iOS) || os(tvOS) || os(watchOS) || GCD_ASYNCH
-        static let socketReaderQueues = [DispatchQueue(label: "Socket Reader A"), DispatchQueue(label: "Socket Reader B")]
+        private static let socketReaderQueues = [DispatchQueue(label: "Socket Reader A"), DispatchQueue(label: "Socket Reader B")]
     
         // Note: This var is optional to enable it to be constructed in the init function
-        var readerSource: DispatchSourceRead!
-        var writerSource: DispatchSourceWrite?
+        private var readerSource: DispatchSourceRead!
+        private var writerSource: DispatchSourceWrite?
     
         private let numberOfSocketReaderQueues = IncomingSocketHandler.socketReaderQueues.count
     
@@ -50,7 +50,7 @@ public class IncomingSocketHandler {
         }
     #endif
 
-    let socket: Socket
+    private let socket: Socket
     private let delegate: WebApp
 
     private let readBuffer = NSMutableData()
@@ -80,31 +80,31 @@ public class IncomingSocketHandler {
     private var handleReadInProgress = false
 
     /// The file descriptor of the incoming socket
-    var fileDescriptor: Int32 { return socket.socketfd }
+    private var fileDescriptor: Int32 { return socket.socketfd }
 
     /// Keep alive timeout for idle sockets in seconds
     static let keepAliveTimeout: TimeInterval = 15
 
     /// A flag indicating that the client has requested that the socket be kept alive
-    private(set) var clientRequestedKeepAlive = false
+    private var clientRequestedKeepAlive = false
 
     /// The socket if idle will be kep alive until...
-    public var keepAliveUntil: TimeInterval = 0.0
+    private(set) var keepAliveUntil: TimeInterval = 0.0
 
     /// A flag indicating that the client has requested that the prtocol be upgraded
-    private(set) var isUpgrade = false
+    private var isUpgrade = false
 
     /// A flag that indicates that there is a request in progress
-    public var inProgress = true
+    private(set) var inProgress = true
 
     ///HTTP Parser
     private let httpParser = HTTPParser()
 
     /// The number of remaining requests that will be allowed on the socket being handled by this handler
-    private(set) var numberOfRequests = 100
+    private var numberOfRequests = 100
 
     /// Should this socket actually be kept alive?
-    var isKeepAlive: Bool { return clientRequestedKeepAlive && numberOfRequests > 0 }
+    private var isKeepAlive: Bool { return clientRequestedKeepAlive && numberOfRequests > 0 }
 
     /// An enum for internal state
     enum State {
@@ -112,7 +112,7 @@ public class IncomingSocketHandler {
     }
 
     /// The state of this handler
-    private(set) var state = State.readingMessage
+    private var state = State.readingMessage
 
     /// Location in the buffer to start parsing from
     private var parseStartingFrom = 0
@@ -193,7 +193,7 @@ public class IncomingSocketHandler {
     
     /// Helper function for handling data read in while the processor couldn't
     /// process it, if there is any
-    func handleBufferedReadDataHelper() -> Bool {
+    private func handleBufferedReadDataHelper() -> Bool {
         let result : Bool
         
         if  readBuffer.length > 0  {
@@ -209,7 +209,7 @@ public class IncomingSocketHandler {
     ///
     /// - Note: On Linux, the `IncomingSocketManager` should call `handleBufferedReadDataHelper`
     ///        directly.
-    public func handleBufferedReadData() {
+    private func handleBufferedReadData() {
         #if os(OSX) || os(iOS) || os(tvOS) || os(watchOS) || GCD_ASYNCH
             if socket.socketfd != Socket.SOCKET_INVALID_DESCRIPTOR {
                 socketReaderQueue(fd: socket.socketfd).sync() { [unowned self] in
@@ -220,7 +220,7 @@ public class IncomingSocketHandler {
     }
     
     /// Write out any buffered data now that the socket can accept more data
-    func handleWrite() {
+    private func handleWrite() {
         #if !GCD_ASYNCH  &&  os(Linux)
             IncomingSocketHandler.socketWriterQueue.sync() { [unowned self] in
                 self.handleWriteHelper()
@@ -315,7 +315,7 @@ public class IncomingSocketHandler {
     /// Write as much data to the socket as possible, buffering the rest
     ///
     /// - Parameter data: The NSData object containing the bytes to write to the socket.
-    public func write(from data: NSData) {
+    func write(from data: NSData) {
         write(from: data.bytes, length: data.length)
     }
     
@@ -323,7 +323,7 @@ public class IncomingSocketHandler {
     ///
     /// - Parameter from: An UnsafeRawPointer to the sequence of bytes to be written to the socket.
     /// - Parameter length: The number of bytes to write to the socket.
-    public func write(from bytes: UnsafeRawPointer, length: Int) {
+    func write(from bytes: UnsafeRawPointer, length: Int) {
         writeInProgress = true
         defer {
             writeInProgress = false // needs to be unset before calling close() as it is part of the guard in close()
@@ -374,7 +374,7 @@ public class IncomingSocketHandler {
     /// If there is data waiting to be written, set a flag and the socket will
     /// be closed when all the buffered data has been written.
     /// Otherwise, immediately close the socket.
-    public func prepareToClose() {
+    func prepareToClose() {
         preparingToClose = true
         close()
     }
@@ -434,7 +434,7 @@ public class IncomingSocketHandler {
     /// - Parameter buffer: An NSData object that contains the data read from the socket.
     ///
     /// - Returns: true if the data was processed, false if it needs to be processed later.
-    public func process(_ buffer: NSData) -> Bool {
+    private func process(_ buffer: NSData) -> Bool {
         let result: Bool
 
         switch(state) {
@@ -457,14 +457,6 @@ public class IncomingSocketHandler {
         return result
     }
 
-    /// Called by the `IncomingSocketHandler` to tell us that the socket has been closed
-    /// by the remote side.
-    public func socketClosed() {
-        keepAliveUntil=0.0
-        inProgress = false
-        clientRequestedKeepAlive = false
-    }
-
     /// Parse the message
     ///
     /// - Parameter buffer: An NSData object contaning the data to be parsed
@@ -472,7 +464,7 @@ public class IncomingSocketHandler {
     /// - Parameter completeBuffer: An indication that the complete buffer is being passed in.
     ///                            If true and the entire buffer is parsed, an EOF indication
     ///                            will be passed to the http_parser.
-    func parse (_ buffer: NSData, from: Int, completeBuffer: Bool=false) -> HTTPParserStatus {
+    private func parse (_ buffer: NSData, from: Int, completeBuffer: Bool=false) -> HTTPParserStatus {
         var status = HTTPParserStatus()
         let length = buffer.length - from
 
