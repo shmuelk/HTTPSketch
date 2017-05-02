@@ -38,32 +38,32 @@ import Socket
 public class IncomingSocketManager  {
 
     struct ThreadSafeSocketHandlers: Sequence {
-        private let lock = NSLock()
+        private let lock = DispatchSemaphore(value: 1)
         private var socketHandlers = [Int32: IncomingSocketHandler]()
 
         subscript(key: Int32) -> IncomingSocketHandler? {
             get {
-                lock.lock()
-                defer { lock.unlock() }
+                lock.wait()
+                defer { lock.signal() }
                 return socketHandlers[key]
             }
 
             set(value) {
-                lock.lock()
-                defer { lock.unlock() }
+                lock.wait()
+                defer { lock.signal() }
                 socketHandlers[key] = value
             }
         }
 
         @discardableResult mutating func removeValue(forKey key: Int32) -> IncomingSocketHandler? {
-            lock.lock()
-            defer { lock.unlock() }
+            lock.wait()
+            defer { lock.signal() }
             return socketHandlers.removeValue(forKey: key)
         }
 
         func makeIterator() -> DictionaryIterator<Int32, IncomingSocketHandler> {
-            lock.lock()
-            defer { lock.unlock() }
+            lock.wait()
+            defer { lock.signal() }
             return socketHandlers.makeIterator()
         }
     }
