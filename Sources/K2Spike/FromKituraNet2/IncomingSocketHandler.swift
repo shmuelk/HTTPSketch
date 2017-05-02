@@ -193,7 +193,7 @@ public class IncomingSocketHandler {
     
     /// Helper function for handling data read in while the processor couldn't
     /// process it, if there is any
-    private func handleBufferedReadDataHelper() -> Bool {
+    func handleBufferedReadDataHelper() -> Bool {
         let result : Bool
         
         if  readBuffer.length > 0  {
@@ -220,7 +220,7 @@ public class IncomingSocketHandler {
     }
     
     /// Write out any buffered data now that the socket can accept more data
-    private func handleWrite() {
+    func handleWrite() {
         #if !GCD_ASYNCH  &&  os(Linux)
             IncomingSocketHandler.socketWriterQueue.sync() { [unowned self] in
                 self.handleWriteHelper()
