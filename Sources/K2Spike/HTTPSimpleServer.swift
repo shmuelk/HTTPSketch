@@ -14,10 +14,6 @@ import Socket
 
 #if os(Linux)
     import Signals
-    #if !GCD_ASYNCH
-        import Glibc
-        import CEpoll
-    #endif
 #endif
 
 

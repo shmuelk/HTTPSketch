@@ -16,10 +16,6 @@ import CHttpParser
 
 #if os(Linux)
     import Signals
-#if !GCD_ASYNCH
-    import Glibc
-    import CEpoll
-#endif
 #endif
 
 
@@ -50,16 +46,13 @@ public class ConnectionListener: HTTPResponseWriter {
     
     var httpBodyProcessingCallback: HTTPBodyProcessing?
     
-    #if os(OSX) || os(iOS) || os(tvOS) || os(watchOS) || GCD_ASYNCH
     private var readerSource: DispatchSourceRead?
     private var writerSource: DispatchSourceWrite?
-    #endif
     
     public func process() {
         do {
             try socket.setBlocking(mode: false)
             
-            #if os(OSX) || os(iOS) || os(tvOS) || os(watchOS) || GCD_ASYNCH
                 readerSource = DispatchSource.makeReadSource(fileDescriptor: socket.socketfd,
                                                                  queue: socketReaderQueue)
                 
@@ -103,7 +96,6 @@ public class ConnectionListener: HTTPResponseWriter {
                     }
                 }
                 readerSource?.resume()
-            #endif
             
         } catch let error {
             Log.error("Error listening to client socket: \(error)")
@@ -508,77 +500,73 @@ public class ConnectionListener: HTTPResponseWriter {
             if written != length {
                 self.writeBuffer.append(bytes + written, length: length - written)
                 
-                #if os(OSX) || os(iOS) || os(tvOS) || os(watchOS) || GCD_ASYNCH
-                    if writerSource == nil {
-                        writerSource = DispatchSource.makeWriteSource(fileDescriptor: socket.socketfd,
-                                                                      queue: socketWriterQueue)
-                        
-                        writerSource!.setEventHandler() {
-                            if  self.writeBuffer.length != 0 {
-                                defer {
-                                    #if os(OSX) || os(iOS) || os(tvOS) || os(watchOS) || GCD_ASYNCH
-                                        if self.writeBuffer.length == 0, let writerSource = self.writerSource {
-                                            writerSource.cancel()
-                                        }
-                                    #endif
-                                }
-                                
-                                // Set handleWriteInProgress flag to true before the guard below to avoid another thread
-                                // invoking close() in between us clearing the guard and setting the flag.
-                                guard self.socket.isActive && self.socket.socketfd > -1 else {
-                                    Log.warning("Socket closed with \(self.writeBuffer.length - self.writeBufferPosition) bytes still to be written")
-                                    self.writeBuffer.length = 0
-                                    self.writeBufferPosition = 0
-
-                                    return
-                                }
-                                
-                                do {
-                                    let amountToWrite = self.writeBuffer.length - self.writeBufferPosition
-                                    
-                                    let written: Int
-                                    
-                                    if amountToWrite > 0 {
-                                        written = try self.socket.write(from: self.writeBuffer.bytes + self.writeBufferPosition,
-                                                                   bufSize: amountToWrite)
-                                    }
-                                    else {
-                                        if amountToWrite < 0 {
-                                            Log.error("Amount of bytes to write to file descriptor \(self.socket.socketfd) was negative \(amountToWrite)")
-                                        }
-                                        
-                                        written = amountToWrite
-                                    }
-                                    
-                                    if written != amountToWrite {
-                                        self.writeBufferPosition += written
-                                    }
-                                    else {
-                                        self.writeBuffer.length = 0
-                                        self.writeBufferPosition = 0
-                                    }
-                                }
-                                catch let error {
-                                    if let error = error as? Socket.Error, error.errorCode == Int32(Socket.SOCKET_ERR_CONNECTION_RESET) {
-                                        Log.debug("Write to socket (file descriptor \(self.socket.socketfd)) failed. Error = \(error).")
-                                    } else {
-                                        Log.error("Write to socket (file descriptor \(self.socket.socketfd)) failed. Error = \(error).")
-                                    }
-                                    
-                                    // There was an error writing to the socket, close the socket
-                                    self.writeBuffer.length = 0
-                                    self.writeBufferPosition = 0
-                                    self.socket.close()
-
+                if writerSource == nil {
+                    writerSource = DispatchSource.makeWriteSource(fileDescriptor: socket.socketfd,
+                                                                  queue: socketWriterQueue)
+                    
+                    writerSource!.setEventHandler() {
+                        if  self.writeBuffer.length != 0 {
+                            defer {
+                                if self.writeBuffer.length == 0, let writerSource = self.writerSource {
+                                    writerSource.cancel()
                                 }
                             }
+                            
+                            // Set handleWriteInProgress flag to true before the guard below to avoid another thread
+                            // invoking close() in between us clearing the guard and setting the flag.
+                            guard self.socket.isActive && self.socket.socketfd > -1 else {
+                                Log.warning("Socket closed with \(self.writeBuffer.length - self.writeBufferPosition) bytes still to be written")
+                                self.writeBuffer.length = 0
+                                self.writeBufferPosition = 0
+                                
+                                return
+                            }
+                            
+                            do {
+                                let amountToWrite = self.writeBuffer.length - self.writeBufferPosition
+                                
+                                let written: Int
+                                
+                                if amountToWrite > 0 {
+                                    written = try self.socket.write(from: self.writeBuffer.bytes + self.writeBufferPosition,
+                                                                    bufSize: amountToWrite)
+                                }
+                                else {
+                                    if amountToWrite < 0 {
+                                        Log.error("Amount of bytes to write to file descriptor \(self.socket.socketfd) was negative \(amountToWrite)")
+                                    }
+                                    
+                                    written = amountToWrite
+                                }
+                                
+                                if written != amountToWrite {
+                                    self.writeBufferPosition += written
+                                }
+                                else {
+                                    self.writeBuffer.length = 0
+                                    self.writeBufferPosition = 0
+                                }
+                            }
+                            catch let error {
+                                if let error = error as? Socket.Error, error.errorCode == Int32(Socket.SOCKET_ERR_CONNECTION_RESET) {
+                                    Log.debug("Write to socket (file descriptor \(self.socket.socketfd)) failed. Error = \(error).")
+                                } else {
+                                    Log.error("Write to socket (file descriptor \(self.socket.socketfd)) failed. Error = \(error).")
+                                }
+                                
+                                // There was an error writing to the socket, close the socket
+                                self.writeBuffer.length = 0
+                                self.writeBufferPosition = 0
+                                self.socket.close()
+                                
+                            }
                         }
-                        writerSource!.setCancelHandler() {
-                            self.writerSource = nil
-                        }
-                        writerSource!.resume()
                     }
-                #endif
+                    writerSource!.setCancelHandler() {
+                        self.writerSource = nil
+                    }
+                    writerSource!.resume()
+                }
             }
         }
         catch let error {
