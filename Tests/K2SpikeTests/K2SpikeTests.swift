@@ -61,11 +61,11 @@ class K2SpikeTests: XCTestCase {
         let receivedExpectation = self.expectation(description: "Received web response")
         
         let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldWebApp()]))
-
+        let server = HTTPSimpleServer()
         do {
-            let server = try HTTPServer.listen(on: 0, delegate: coordinator.handle)
+            try server.start(port: 0, webapp: coordinator.handle)
             let session = URLSession(configuration: URLSessionConfiguration.default)
-            let url = URL(string: "http://localhost:\(server.port!)/helloworld")!
+            let url = URL(string: "http://localhost:\(server.port)/helloworld")!
             let dataTask = session.dataTask(with: url) { (responseBody, rawResponse, error) in
                 let response = rawResponse as? HTTPURLResponse
                 XCTAssertNil(error, "\(error!.localizedDescription)")
@@ -100,11 +100,11 @@ class K2SpikeTests: XCTestCase {
         }
 
         let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): simpleHelloWebApp]))
-        
+        let server = HTTPSimpleServer()
         do {
-            let server = try HTTPServer.listen(on: 0, delegate: coordinator.handle)
+            try server.start(port: 0, webapp: coordinator.handle)
             let session = URLSession(configuration: URLSessionConfiguration.default)
-            let url = URL(string: "http://localhost:\(server.port!)/helloworld")!
+            let url = URL(string: "http://localhost:\(server.port)/helloworld")!
             let dataTask = session.dataTask(with: url) { (responseBody, rawResponse, error) in
                 let response = rawResponse as? HTTPURLResponse
                 XCTAssertNil(error, "\(error!.localizedDescription)")
@@ -133,14 +133,16 @@ class K2SpikeTests: XCTestCase {
         let testString="This is a test"
 
         let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/echo", verb:.POST): EchoWebApp()]))
-        
+        let server = HTTPSimpleServer()
         do {
-            let server = try HTTPServer.listen(on: 0, delegate: coordinator.handle)
+            try server.start(port: 0, webapp: coordinator.handle)
             let session = URLSession(configuration: URLSessionConfiguration.default)
-            let url = URL(string: "http://localhost:\(server.port!)/echo")!
+            let url = URL(string: "http://localhost:\(server.port)/echo")!
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.httpBody = testString.data(using: .utf8)
+            request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
+            
             let dataTask = session.dataTask(with: request) { (responseBody, rawResponse, error) in
                 let response = rawResponse as? HTTPURLResponse
                 XCTAssertNil(error, "\(error!.localizedDescription)")
@@ -172,10 +174,11 @@ class K2SpikeTests: XCTestCase {
         coordinator.addPreProcessor(badCookieHandler.preProcess)
         coordinator.addPostProcessor(badCookieHandler.postProcess)
         
+        let server = HTTPSimpleServer()
         do {
-            let server = try HTTPServer.listen(on: 0, delegate: coordinator.handle)
+            try server.start(port: 0, webapp: coordinator.handle)
             let session = URLSession(configuration: URLSessionConfiguration.default)
-            let url = URL(string: "http://localhost:\(server.port!)/helloworld")!
+            let url = URL(string: "http://localhost:\(server.port)/helloworld")!
             let dataTask = session.dataTask(with: url) { (responseBody, rawResponse, error) in
                 let response = rawResponse as? HTTPURLResponse
                 XCTAssertNil(error, "\(error!.localizedDescription)")

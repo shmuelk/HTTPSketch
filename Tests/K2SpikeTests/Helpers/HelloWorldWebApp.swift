@@ -19,10 +19,9 @@ class HelloWorldWebApp: ResponseCreating {
         return .processBody { (chunk, stop) in
             switch chunk {
             case .chunk(_, let finishedProcessing):
-                res.writeBody(data: "Hello, World!".data(using: .utf8)!) { _ in
-                    finishedProcessing()
-                }
+                finishedProcessing()
             case .end:
+                res.writeBody(data: "Hello, World!".data(using: .utf8)!) { _ in }
                 res.done()
             default:
                 stop = true /* don't call us anymore */

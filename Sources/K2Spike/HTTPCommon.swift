@@ -43,6 +43,21 @@ public struct HTTPHeaders {
         return original.makeIterator()
     }
     
+    //FIXME: Clean this up
+    public mutating func append(newHeader: (String, String)) {
+        original.append(newHeader)
+        storage = [String:[String]]()
+        makeIterator().forEach { (element: (String, String)) in
+            let key = element.0.lowercased()
+            let val = element.1
+            
+            var existing = storage[key] ?? []
+            existing.append(val)
+            storage[key] = existing
+        }
+    }
+
+    
     public init(_ headers: [(String, String)] = []) {
         original = headers
         description=""
