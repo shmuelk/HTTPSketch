@@ -225,6 +225,56 @@ class K2SpikeTests: XCTestCase {
             XCTFail("Error listening on port \(0): \(error). Use server.failed(callback:) to handle")
         }
     }
+    
+    func testRequestLargeEchoEndToEnd() {
+        HeliumLogger.use(.info)
+        let receivedExpectation = self.expectation(description: "Received web response")
+        //Get a file we know exists
+        //let currentDirectoryURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        let executableUrl = URL(fileURLWithPath: CommandLine.arguments[0])
+        
+        let testExecutableData = try! Data(contentsOf: executableUrl)
+        
+        var testDataLong = testExecutableData + testExecutableData + testExecutableData + testExecutableData
+        let length = testDataLong.count
+        let keep = 16385
+        let remove = length - keep
+        if (remove > 0) {
+            testDataLong.removeLast(remove)
+        }
+        
+        let testData = Data(testDataLong)
+        
+        let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/echo", verb:.POST): EchoWebApp()]))
+        
+        let server = HTTPSimpleServer()
+        do {
+            try server.start(port: 0, webapp: coordinator.handle)
+            let session = URLSession(configuration: URLSessionConfiguration.default)
+            let url = URL(string: "http://localhost:\(server.port)/echo")!
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.httpBody = testData
+            let dataTask = session.dataTask(with: request) { (responseBody, rawResponse, error) in
+                let response = rawResponse as? HTTPURLResponse
+                XCTAssertNil(error, "\(error!.localizedDescription)")
+                XCTAssertNotNil(response)
+                XCTAssertNotNil(responseBody)
+                XCTAssertEqual(Int(HTTPResponseStatus.ok.code), response?.statusCode ?? 0)
+                XCTAssertEqual(testData, responseBody ?? Data())
+                receivedExpectation.fulfill()
+            }
+            dataTask.resume()
+            self.waitForExpectations(timeout: 10) { (error) in
+                if let error = error {
+                    XCTFail("\(error)")
+                }
+            }
+            server.stop()
+        } catch {
+            XCTFail("Error listening on port \(0): \(error). Use server.failed(callback:) to handle")
+        }
+    }
 
     
     static var allTests = [
