@@ -22,7 +22,9 @@ class SimpleResponseCreator: ResponseCreating {
         return .processBody { (chunk, stop) in
             switch chunk {
             case .chunk(let data, let finishedProcessing):
-                self.buffer.append(Data(data))
+                if (data.count > 0) {
+                    self.buffer.append(Data(data))
+                }
                 finishedProcessing()
             case .end:
                 let (response, body) = self.completionHandler(req, context, self.buffer)

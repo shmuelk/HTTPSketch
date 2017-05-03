@@ -33,7 +33,7 @@ public class ConnectionListener: HTTPResponseWriter {
     
     let writeBuffer = NSMutableData()
     var writeBufferPosition = 0
-    let keepAliveTimeout: TimeInterval = 15
+    let keepAliveTimeout: TimeInterval = 5
     var clientRequestedKeepAlive = false
     
     var parserBuffer: DispatchData?
@@ -379,11 +379,13 @@ public class ConnectionListener: HTTPResponseWriter {
     public func writeBody(data: DispatchData, completion: @escaping (Result<POSIXError, ()>) -> Void) {
         guard headersWritten else {
             //TODO error or default headers?
+            Log.error("No Headers Written during writeBody(data: DispatchData, completion:)")
             return
         }
         
         guard data.count > 0 else {
             // TODO fix Result
+            Log.error("data.count <= 0 during writeBody(data: DispatchData, completion:)")
             completion(Result(completion: ()))
             return
         }
