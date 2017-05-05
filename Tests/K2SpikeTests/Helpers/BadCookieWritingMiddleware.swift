@@ -15,6 +15,7 @@ class BadCookieWritingMiddleware {
     
     var UUIDString:String?
     let cookieName:String
+    let urlForUUIDFetch: URL
     
     private class HTTPResponseWriterAddingCookie : HTTPResponseWriter {
         let oldResponseWriter: HTTPResponseWriter
@@ -57,8 +58,9 @@ class BadCookieWritingMiddleware {
 
     }
     
-    init(cookieName: String) {
+    init(cookieName: String, urlForUUIDFetch: URL) {
         self.cookieName = cookieName
+        self.urlForUUIDFetch = urlForUUIDFetch
     }
     
     func preProcess (_ req: HTTPRequest, _ context: RequestContext, _ completionHandler: @escaping (_ req: HTTPRequest, _ context: RequestContext) -> ()) -> HTTPPreProcessingStatus {
@@ -66,8 +68,7 @@ class BadCookieWritingMiddleware {
         //FIXME: Get this to not fail when offline
         
         let session = URLSession(configuration: URLSessionConfiguration.default)
-        let url = URL(string: "https://www.uuidgenerator.net/api/version4")!
-        let dataTask = session.dataTask(with: url) { (responseBody, rawResponse, error) in
+        let dataTask = session.dataTask(with: urlForUUIDFetch) { (responseBody, rawResponse, error) in
             guard let body = responseBody, let uuidString = String(data: body, encoding: .utf8) else {
                 Log.error("failed to retrive UUID")
                 completionHandler(req, context)

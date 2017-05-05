@@ -89,7 +89,7 @@ class K2SpikeTests: XCTestCase {
     }
     
     func testSimpleHelloEndToEnd() {
-        HeliumLogger.use(.info)
+        HeliumLogger.use(.debug)
         let receivedExpectation = self.expectation(description: "Received web response \(#function)")
         let simpleHelloWebApp = SimpleResponseCreator { (request, context, body) -> (reponse: HTTPResponse, responseBody: Data) in
             return (HTTPResponse(httpVersion: request.httpVersion,
@@ -104,28 +104,33 @@ class K2SpikeTests: XCTestCase {
         let server = HTTPSimpleServer()
         do {
             try server.start(port: 0, webapp: coordinator.handle)
-            let session = URLSession(configuration: URLSessionConfiguration.default)
-            let url = URL(string: "http://localhost:\(server.port)/helloworld")!
-            print("Test \(#function) on port \(server.port)")
-            let dataTask = session.dataTask(with: url) { (responseBody, rawResponse, error) in
-                let response = rawResponse as? HTTPURLResponse
-                XCTAssertNil(error, "\(error!.localizedDescription)")
-                XCTAssertNotNil(response)
-                XCTAssertNotNil(responseBody)
-                XCTAssertEqual(Int(HTTPResponseStatus.ok.code), response?.statusCode ?? 0)
-                XCTAssertEqual("Hello, World!", String(data: responseBody ?? Data(), encoding: .utf8) ?? "Nil")
-                receivedExpectation.fulfill()
-            }
-            dataTask.resume()
-            self.waitForExpectations(timeout: 10) { (error) in
-                if let error = error {
-                    XCTFail("\(error)")
-                }
-            }
-            server.stop()
         } catch {
             XCTFail("Error listening on port \(0): \(error). Use server.failed(callback:) to handle")
         }
+        
+        let session = URLSession(configuration: URLSessionConfiguration.default)
+        let url = URL(string: "http://localhost:\(server.port)/helloworld")!
+        print("Test \(#function) on port \(server.port)")
+        let dataTask = session.dataTask(with: url) { (responseBody, rawResponse, error) in
+            print("\(#function) dataTask returned")
+            let response = rawResponse as? HTTPURLResponse
+            XCTAssertNil(error, "\(error!.localizedDescription)")
+            XCTAssertNotNil(response)
+            XCTAssertNotNil(responseBody)
+            XCTAssertEqual(Int(HTTPResponseStatus.ok.code), response?.statusCode ?? 0)
+            let responseString = String(data: responseBody ?? Data(), encoding: .utf8) ?? "Nil"
+            XCTAssertEqual("Hello, World!", responseString)
+            print("\(#function) fulfilling expectation")
+            receivedExpectation.fulfill()
+        }
+        dataTask.resume()
+        self.waitForExpectations(timeout: 10) { (error) in
+            if let error = error {
+                XCTFail("\(error)")
+            }
+        }
+        server.stop()
+        print("\(#function) stopping server")
     }
 
     
@@ -222,19 +227,29 @@ class K2SpikeTests: XCTestCase {
         HeliumLogger.use(.info)
         let receivedExpectation = self.expectation(description: "Received web response \(#function)")
         
-        let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldWebApp()]))
-        let badCookieHandler = BadCookieWritingMiddleware(cookieName: "OurCookie")
+        let helloWorldCoordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldWebApp()]))
         
-        coordinator.addPreProcessor(badCookieHandler.preProcess)
-        coordinator.addPostProcessor(badCookieHandler.postProcess)
+        let uuidCoordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/uuid", verb:.GET): UUIDGeneratorWebApp()]))
         
-        let server = HTTPSimpleServer()
+        let helloWorldServer = HTTPSimpleServer()
+        let uuidServer = HTTPSimpleServer()
         do {
-            try server.start(port: 0, webapp: coordinator.handle)
+            try uuidServer.start(port: 0, webapp: uuidCoordinator.handle)
+            let urlForUUID = URL(string: "http://localhost:\(uuidServer.port)/uuid")!
+            //let urlForUUID = URL(string: "https://www.uuidgenerator.net/api/version4")! //To test via remote server
+            let badCookieHandler = BadCookieWritingMiddleware(cookieName: "OurCookie",urlForUUIDFetch:urlForUUID)
+            
+            helloWorldCoordinator.addPreProcessor(badCookieHandler.preProcess)
+            helloWorldCoordinator.addPostProcessor(badCookieHandler.postProcess)
+
+            try helloWorldServer.start(port: 0, webapp: helloWorldCoordinator.handle)
             let session = URLSession(configuration: URLSessionConfiguration.default)
-            let url = URL(string: "http://localhost:\(server.port)/helloworld")!
-            print("Test \(#function) on port \(server.port)")
-            let dataTask = session.dataTask(with: url) { (responseBody, rawResponse, error) in
+            let urlForHelloWorld = URL(string: "http://localhost:\(helloWorldServer.port)/helloworld")!
+
+            print("Test \(#function) on port \(helloWorldServer.port) with uuid server on port \(uuidServer.port)")
+            //print("Test \(#function) on port \(helloWorldServer.port)")
+            
+            let dataTask = session.dataTask(with: urlForHelloWorld) { (responseBody, rawResponse, error) in
                 let response = rawResponse as? HTTPURLResponse
                 XCTAssertNil(error, "\(error!.localizedDescription)")
                 XCTAssertNotNil(response)
@@ -250,7 +265,7 @@ class K2SpikeTests: XCTestCase {
                     XCTAssertTrue(ourCookieString.substring(to: index) == "OurCookie=")
                 #else
                     let fields = response?.allHeaderFields as? [String : String] ?? [:]
-                    let cookies = HTTPCookie.cookies(withResponseHeaderFields: fields, for: url)
+                    let cookies = HTTPCookie.cookies(withResponseHeaderFields: fields, for: urlForHelloWorld)
                     XCTAssertNotNil(cookies)
                     print("\(cookies.debugDescription)")
                     var ourCookie: HTTPCookie? = nil
@@ -275,7 +290,8 @@ class K2SpikeTests: XCTestCase {
                     XCTFail("\(error)")
                 }
             }
-            server.stop()
+            helloWorldServer.stop()
+            uuidServer.stop()
         } catch {
             XCTFail("Error listening on port \(0): \(error). Use server.failed(callback:) to handle")
         }
@@ -289,6 +305,7 @@ class K2SpikeTests: XCTestCase {
         ("testHelloEndToEnd", testHelloEndToEnd),
         ("testSimpleHelloEndToEnd", testSimpleHelloEndToEnd),
         ("testRequestEchoEndToEnd", testRequestEchoEndToEnd),
+        ("testRequestLargeEchoEndToEnd", testRequestLargeEchoEndToEnd),
         ("testWithCookieHelloEndToEnd", testWithCookieHelloEndToEnd),
         ]
 }

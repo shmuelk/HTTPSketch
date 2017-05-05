@@ -23,6 +23,7 @@ import Socket
 public class HTTPSimpleServer {
     
     private let serverSocket: Socket
+    private var connectionListenerList = ConnectionListenerCollection()
     
     public var port: Int {
         return Int(serverSocket.listeningPort)
@@ -45,7 +46,9 @@ public class HTTPSimpleServer {
             repeat {
                 do {
                     let clientSocket = try self.serverSocket.acceptClientConnection()
-                    let connectionListener = ConnectionListener(socket: clientSocket, webapp: webapp)
+                    let streamingParser = StreamingParser(webapp: webapp)
+                    let connectionListener = ConnectionListener(socket:clientSocket, parser: streamingParser)
+                    self.connectionListenerList.add(connectionListener)
                     DispatchQueue.global().async {
                         connectionListener.process()
                     }
@@ -58,6 +61,26 @@ public class HTTPSimpleServer {
     }
     
     public func stop() {
+        connectionListenerList.closeAll()
         serverSocket.close()
+    }
+}
+
+class ConnectionListenerCollection {
+    class WeakConnectionListener<T: AnyObject> {
+        weak var value : T?
+        init (_ value: T) {
+            self.value = value
+        }
+    }
+    
+    var storage = [WeakConnectionListener<ConnectionListener>]()
+    
+    func add(_ listener:ConnectionListener) {
+        storage.append(WeakConnectionListener(listener))
+    }
+    
+    func closeAll() {
+        storage.filter { nil != $0.value }.forEach {$0.value?.close()}
     }
 }
