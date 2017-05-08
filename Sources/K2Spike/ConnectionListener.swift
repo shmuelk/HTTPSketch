@@ -35,22 +35,13 @@ public class ConnectionListener {
     private var readerSource: DispatchSourceRead?
     private var writerSource: DispatchSourceWrite?
 
-    // Handle to HTTPSimpleServer's `connectionListenerList`
-    private var connectionListenerList: ConnectionListenerCollection?
-
     // Timer that cleans up idle sockets on expire
     private var idleSocketTimer: DispatchSourceTimer?
 
-    public convenience init(socket: Socket, parser: StreamingParser) {
-        self.init(socket: socket, parser: parser)
-    }
-
-    init(socket: Socket, parser: StreamingParser, connectionListenerList: ConnectionListenerCollection? = nil) {
+    public init(socket: Socket, parser: StreamingParser) {
         self.socket = socket
         socketReaderQueue = DispatchQueue(label: "Socket Reader \(socket.remotePort)")
         socketWriterQueue = DispatchQueue(label: "Socket Writer \(socket.remotePort)")
-
-        self.connectionListenerList = connectionListenerList
 
         self.parser = parser
         parser.closeConnection = self.closeWriter
@@ -73,7 +64,6 @@ public class ConnectionListener {
         let now = Date().timeIntervalSinceReferenceDate
         if let keepAliveUntil = parser.keepAliveUntil, now >= keepAliveUntil {
             close()
-            // TODO: call connectionListenerList.remove(self)
         }
     }
 

@@ -23,7 +23,7 @@ class ConnectionListenerTests: XCTestCase {
     ]
 
     func testCleanUpIdleSocket() throws {
-        let expectation = self.expectation(description: "Clean up socket at appropriate time.")
+        let expectation = self.expectation(description: #function)
 
         let keepAliveTimeout = StreamingParser.keepAliveTimeout + 1
         let socket = try Socket.create()
@@ -35,9 +35,9 @@ class ConnectionListenerTests: XCTestCase {
                     let newSocket = try socket.acceptClientConnection()
                     let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldWebApp()]))
                     let parser = StreamingParser(webapp: coordinator.handle)
-                    let connectionListenerList = ConnectionListenerCollection()
-                    let connectionListener = ConnectionListener(socket: newSocket, parser: parser, connectionListenerList: connectionListenerList)
+                    let connectionListener = ConnectionListener(socket: newSocket, parser: parser)
                     XCTAssert(connectionListener.socket.isConnected)
+
                     socket.close()
 
                     parser.done()
@@ -47,9 +47,7 @@ class ConnectionListenerTests: XCTestCase {
                         XCTAssertFalse(connectionListener.socket.isConnected)
                         print("Success")
                         expectation.fulfill()
-
                     })
-
                 } catch {
                     XCTFail("\(error)")
                 }
@@ -69,7 +67,7 @@ class ConnectionListenerTests: XCTestCase {
     }
 
     func testDontCleanUpIdleSocket() throws {
-        let expectation = self.expectation(description: "Clean up socket at appropriate time.")
+        let expectation = self.expectation(description: #function)
 
         let keepAliveTimeout = StreamingParser.keepAliveTimeout
         let socket = try Socket.create()
@@ -81,9 +79,9 @@ class ConnectionListenerTests: XCTestCase {
                     let newSocket = try socket.acceptClientConnection()
                     let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldWebApp()]))
                     let parser = StreamingParser(webapp: coordinator.handle)
-                    let connectionListenerList = ConnectionListenerCollection()
-                    let connectionListener = ConnectionListener(socket: newSocket, parser: parser, connectionListenerList: connectionListenerList)
+                    let connectionListener = ConnectionListener(socket: newSocket, parser: parser)
                     XCTAssert(connectionListener.socket.isConnected)
+
                     socket.close()
 
                     print("Waiting 1 second to let connectionListener's timer to start...")

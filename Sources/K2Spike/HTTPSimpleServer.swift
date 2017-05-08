@@ -47,7 +47,7 @@ public class HTTPSimpleServer {
                 do {
                     let clientSocket = try self.serverSocket.acceptClientConnection()
                     let streamingParser = StreamingParser(webapp: webapp)
-                    let connectionListener = ConnectionListener(socket:clientSocket, parser: streamingParser, connectionListenerList: self.connectionListenerList)
+                    let connectionListener = ConnectionListener(socket:clientSocket, parser: streamingParser)
                     self.connectionListenerList.add(connectionListener)
                     DispatchQueue.global().async {
                         connectionListener.process()
@@ -79,10 +79,8 @@ class ConnectionListenerCollection {
     func add(_ listener:ConnectionListener) {
         storage.append(WeakConnectionListener(listener))
     }
-
-    // TODO: create remove function
     
     func closeAll() {
-        storage.filter { nil != $0.value }.forEach {$0.value?.close()}
+        storage.filter { nil != $0.value }.forEach { $0.value?.close() }
     }
 }
