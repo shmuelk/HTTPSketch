@@ -6,7 +6,6 @@
 //
 //
 
-import Dispatch
 import Foundation
 
 import LoggerAPI
@@ -14,6 +13,7 @@ import Socket
 
 #if os(Linux)
     import Signals
+    import Dispatch
 #endif
 
 
@@ -23,7 +23,7 @@ import Socket
 public class ConnectionListener {
     var socket : Socket
     let parser: StreamingParser
-    
+
     let socketReaderQueue: DispatchQueue
     let socketWriterQueue: DispatchQueue
     let readBuffer = NSMutableData()
@@ -34,15 +34,56 @@ public class ConnectionListener {
     
     private var readerSource: DispatchSourceRead?
     private var writerSource: DispatchSourceWrite?
-    
-    public init(socket: Socket, parser: StreamingParser) {
+
+    // Handle to HTTPSimpleServer's `connectionListenerList`
+    private var connectionListenerList: ConnectionListenerCollection?
+
+    // Timer that cleans up idle sockets on expire
+    private var idleSocketTimer: DispatchSourceTimer?
+
+    public convenience init(socket: Socket, parser: StreamingParser) {
+        self.init(socket: socket, parser: parser)
+    }
+
+    init(socket: Socket, parser: StreamingParser, connectionListenerList: ConnectionListenerCollection? = nil) {
         self.socket = socket
         socketReaderQueue = DispatchQueue(label: "Socket Reader \(socket.remotePort)")
         socketWriterQueue = DispatchQueue(label: "Socket Writer \(socket.remotePort)")
 
+        self.connectionListenerList = connectionListenerList
+
         self.parser = parser
         parser.closeConnection = self.closeWriter
         parser.writeToConnection = self.socketWrite
+
+        idleSocketTimer = makeIdleSocketTimer()
+    }
+
+    private func makeIdleSocketTimer() -> DispatchSourceTimer {
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "idleSocketTimer"))
+        timer.scheduleRepeating(deadline: .now(), interval: .seconds(Int(StreamingParser.keepAliveTimeout)))
+        timer.setEventHandler { [weak self] in
+            self?.closeIdleSocket()
+        }
+        timer.resume()
+        return timer
+    }
+
+    private func closeIdleSocket() {
+        let now = Date().timeIntervalSinceReferenceDate
+        if let keepAliveUntil = parser.keepAliveUntil, now >= keepAliveUntil {
+            close()
+            // TODO: call connectionListenerList.remove(self)
+        }
+    }
+
+    deinit {
+        cleanupIdleSocketTimer()
+    }
+
+    private func cleanupIdleSocketTimer() {
+        idleSocketTimer?.cancel()
+        idleSocketTimer = nil
     }
     
     public func close() {
