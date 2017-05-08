@@ -131,13 +131,38 @@ public class ConnectionListener {
     }
     
     
-    func queueSocketWrite(from bytes: UnsafeRawPointer, length: Int) {
+    func queueSocketWrite(from bytes: DispatchData) {
+        if Log.isLogging(.debug) {
+            let byteDataToPrint = Data(bytes)
+            let byteStringToPrint = String(data:byteDataToPrint, encoding:.utf8)
+            if let byteStringToPrint = byteStringToPrint {
+                Log.debug("\(#function) called with '\(byteStringToPrint)'")
+            } else {
+                Log.debug("\(#function) called with UNPRINTABLE")
+            }
+        }
         self.socketWriterQueue.async {
-            self.socketWrite(from: bytes, length: length)
+            bytes.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
+                self.socketWrite(from: ptr, length: bytes.count)
+            }
         }
     }
 
     func socketWrite(from bytes: UnsafeRawPointer, length: Int) {
+        if Log.isLogging(.debug) {
+            if length > 0 {
+                let byteDataToPrint = Data(bytes:bytes, count:length)
+                let byteStringToPrint = String(data:byteDataToPrint, encoding:.utf8)
+                if let byteStringToPrint = byteStringToPrint {
+                    Log.debug("\(#function) called with '\(byteStringToPrint)' to \(length)")
+                } else {
+                    Log.debug("\(#function) called with UNPRINTABLE")
+                }
+            } else {
+                Log.debug("\(#function) called empty")
+            }
+        }
+
         guard self.socket.isActive && socket.socketfd > -1 else {
             Log.warning("Socket write() called after socket \(socket.socketfd) closed")
             self.closeWriter()
