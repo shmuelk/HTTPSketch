@@ -1,5 +1,5 @@
 
-enum Verb: String {
+public enum Verb: String {
     case GET = "get"
     case PUT = "put"
     case POST = "post"
@@ -88,5 +88,10 @@ public struct Path: Hashable {
     ///   - rhs: Another value to compare.
     public static func ==(lhs: Path, rhs: Path) -> Bool {
         return lhs.path == rhs.path && lhs.verb == rhs.verb
+    }
+    
+    public init(path:String, verb:Verb) {
+        self.path = path
+        self.verb = verb
     }
 }

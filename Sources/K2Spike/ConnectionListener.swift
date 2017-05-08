@@ -42,7 +42,7 @@ public class ConnectionListener {
 
         self.parser = parser
         parser.closeConnection = self.closeWriter
-        parser.writeToConnection = self.socketWrite
+        parser.writeToConnection = self.queueSocketWrite
     }
     
     public func close() {
@@ -131,6 +131,11 @@ public class ConnectionListener {
     }
     
     
+    func queueSocketWrite(from bytes: UnsafeRawPointer, length: Int) {
+        self.socketWriterQueue.async {
+            self.socketWrite(from: bytes, length: length)
+        }
+    }
 
     func socketWrite(from bytes: UnsafeRawPointer, length: Int) {
         guard self.socket.isActive && socket.socketfd > -1 else {

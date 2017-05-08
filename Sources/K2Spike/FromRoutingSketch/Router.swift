@@ -14,7 +14,7 @@ extension String {
     }
 }
 
-struct PathComponents {
+public struct PathComponents {
     let parameters: [String: String]?
     let queries: [URLQueryItem]?
 }
@@ -72,7 +72,7 @@ struct URLParser {
 public struct Router {
     var map: [Path: ResponseCreating]
 
-    func route(request: HTTPRequest) -> (PathComponents, ResponseCreating)? {
+    public func route(request: HTTPRequest) -> (PathComponents, ResponseCreating)? {
         guard let verb = Verb(request.method) else {
             return nil
         }
@@ -88,5 +88,9 @@ public struct Router {
         }
 
         return nil
+    }
+    
+    public init (map:[Path: ResponseCreating]) {
+        self.map = map
     }
 }
