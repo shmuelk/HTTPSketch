@@ -199,6 +199,8 @@ public class StreamingParser: HTTPResponseWriter {
     
     func headersCompleted() -> Int32 {
         processCurrentCallback(.headersCompleted)
+        //This needs to be set here and not messageCompleted if it's going to work here
+        self.clientRequestedKeepAlive = (http_should_keep_alive(&httpParser) == 1)
         return 0
     }
     
