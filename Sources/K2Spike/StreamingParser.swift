@@ -177,7 +177,7 @@ public class StreamingParser: HTTPResponseWriter {
     }
     
     func messageCompleted() -> Int32 {
-        Log.info("\(#function) called")
+        Log.debug("\(#function) called")
         
         let didChangeState = processCurrentCallback(.messageCompleted)
         if let chunkHandler = self.httpBodyProcessingCallback, didChangeState {
@@ -411,7 +411,7 @@ public class StreamingParser: HTTPResponseWriter {
         }
         
         let bodyString2=String(data:Data(dataToWrite),encoding:.utf8)!
-        Log.info("\(#function) called with '\(bodyString2)'")
+        Log.debug("\(#function) called with '\(bodyString2)'")
         self.writeToConnection?(dataToWrite)
         
         completion(Result(completion: ()))

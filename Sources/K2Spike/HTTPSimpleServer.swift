@@ -29,7 +29,7 @@ public class HTTPSimpleServer {
         return Int(serverSocket.listeningPort)
     }
     
-    init() {
+    public init() {
         #if os(Linux)
             Signals.trap(signal: .pipe) {
                 _ in
