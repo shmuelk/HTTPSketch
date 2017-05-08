@@ -13,7 +13,7 @@ import LoggerAPI
 
 import CHttpParser
 
-public typealias ConnectionWriter = (_ from: UnsafeRawPointer, _ length: Int) -> Void
+public typealias ConnectionWriter = (_ from: DispatchData) -> Void
 public typealias ConnectionCloser = () -> Void
 
 public class StreamingParser: HTTPResponseWriter {
@@ -117,6 +117,8 @@ public class StreamingParser: HTTPResponseWriter {
     
     @discardableResult
     func processCurrentCallback(_ currentCallBack:CallbackRecord) -> Bool {
+        Log.verbose("\(#function) called from \(lastCallBack) to \(currentCallBack)")
+
         if lastCallBack == currentCallBack {
             return false
         }
@@ -178,13 +180,6 @@ public class StreamingParser: HTTPResponseWriter {
         Log.info("\(#function) called")
         
         let didChangeState = processCurrentCallback(.messageCompleted)
-        self.parsedHTTPMethod = nil
-        self.parsedURL=nil
-        self.parsedHeaders = HTTPHeaders()
-        self.lastHeaderName = nil
-        self.parserBuffer = nil
-        self.parsedHTTPMethod = nil
-        self.parsedHTTPVersion = nil
         if let chunkHandler = self.httpBodyProcessingCallback, didChangeState {
             var stop=false
             switch chunkHandler {
@@ -201,6 +196,7 @@ public class StreamingParser: HTTPResponseWriter {
         processCurrentCallback(.headersCompleted)
         //This needs to be set here and not messageCompleted if it's going to work here
         self.clientRequestedKeepAlive = (http_should_keep_alive(&httpParser) == 1)
+        self.keepAliveUntil = Date(timeIntervalSinceNow: keepAliveTimeout).timeIntervalSinceReferenceDate
         return 0
     }
     
@@ -279,7 +275,7 @@ public class StreamingParser: HTTPResponseWriter {
         // TODO use requested encoding if specified
         if let data = status.data(using: .utf8) {
             data.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-                self.writeToConnection?(ptr, data.count)
+                self.writeToConnection?(DispatchData(bytes: UnsafeBufferPointer(start: ptr, count: data.count)))
             }
         } else {
             //TODO handle encoding error
@@ -314,10 +310,12 @@ public class StreamingParser: HTTPResponseWriter {
             }
         headers.append("\r\n")
         
+        Log.debug("\(#function) about to write '\(headers)'")
+
         // TODO use requested encoding if specified
         if let data = headers.data(using: .utf8) {
             data.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-                self.writeToConnection?(ptr, data.count)
+                self.writeToConnection?(DispatchData(bytes: UnsafeBufferPointer(start: ptr, count: data.count)))
             }
             headersWritten = true
         } else {
@@ -330,6 +328,11 @@ public class StreamingParser: HTTPResponseWriter {
     }
     
     public func writeBody(data: DispatchData, completion: @escaping (Result<POSIXError, ()>) -> Void) {
+        if Log.isLogging(.debug) {
+            let bodyString=String(data:Data(data),encoding:.utf8)!
+            Log.debug("\(#function) about to write '\(bodyString)'")
+        }
+
         guard headersWritten else {
             //TODO error or default headers?
             return
@@ -358,9 +361,7 @@ public class StreamingParser: HTTPResponseWriter {
             dataToWrite = data
         }
         
-        dataToWrite.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-            self.writeToConnection?(ptr, dataToWrite.count)
-        }
+        self.writeToConnection?(dataToWrite)
         
         completion(Result(completion: ()))
     }
@@ -372,6 +373,11 @@ public class StreamingParser: HTTPResponseWriter {
     }
     
     public func writeBody(data: Data, completion: @escaping (Result<POSIXError, ()>) -> Void) {
+        if Log.isLogging(.debug) {
+            let bodyString=String(data:Data(data),encoding:.utf8)!
+            Log.debug("\(#function) called with '\(bodyString)'")
+        }
+
         guard headersWritten else {
             //TODO error or default headers?
             return
@@ -404,9 +410,9 @@ public class StreamingParser: HTTPResponseWriter {
             }
         }
         
-        dataToWrite.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-            self.writeToConnection?(ptr, dataToWrite.count)
-        }
+        let bodyString2=String(data:Data(dataToWrite),encoding:.utf8)!
+        Log.info("\(#function) called with '\(bodyString2)'")
+        self.writeToConnection?(dataToWrite)
         
         completion(Result(completion: ()))
     }
@@ -421,12 +427,22 @@ public class StreamingParser: HTTPResponseWriter {
         if isChunked {
             let chunkTerminate = "0\r\n\r\n".data(using: .utf8)!
             chunkTerminate.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-                self.writeToConnection?(ptr, chunkTerminate.count)
+                self.writeToConnection?(DispatchData(bytes: UnsafeBufferPointer<UInt8>(start: ptr, count: chunkTerminate.count)))
             }
+
         }
         
         if clientRequestedKeepAlive {
             keepAliveUntil = Date(timeIntervalSinceNow:keepAliveTimeout).timeIntervalSinceReferenceDate
+            self.parsedHTTPMethod = nil
+            self.parsedURL=nil
+            self.parsedHeaders = HTTPHeaders()
+            self.lastHeaderName = nil
+            self.parserBuffer = nil
+            self.parsedHTTPMethod = nil
+            self.parsedHTTPVersion = nil
+            self.lastCallBack = .idle
+            self.headersWritten = false
         } else {
             self.closeConnection?()
         }

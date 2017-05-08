@@ -29,7 +29,7 @@ public class HTTPSimpleServer {
         return Int(serverSocket.listeningPort)
     }
     
-    public init() {
+    init() {
         #if os(Linux)
             Signals.trap(signal: .pipe) {
                 _ in
@@ -64,6 +64,10 @@ public class HTTPSimpleServer {
         connectionListenerList.closeAll()
         serverSocket.close()
     }
+    
+    internal var connectionCount: Int {
+        return connectionListenerList.count
+    }
 }
 
 class ConnectionListenerCollection {
@@ -82,5 +86,9 @@ class ConnectionListenerCollection {
     
     func closeAll() {
         storage.filter { nil != $0.value }.forEach {$0.value?.close()}
+    }
+    
+    var count: Int {
+        return storage.filter { nil != $0.value }.count
     }
 }
