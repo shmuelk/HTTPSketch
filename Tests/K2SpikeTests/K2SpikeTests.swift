@@ -171,6 +171,94 @@ class K2SpikeTests: XCTestCase {
             XCTFail("Error listening on port \(0): \(error). Use server.failed(callback:) to handle")
         }
     }
+    
+    func testRequestKeepAliveEchoEndToEnd() {
+        HeliumLogger.use(.info)
+        let receivedExpectation1 = self.expectation(description: "Received web response 1: \(#function)")
+        let receivedExpectation2 = self.expectation(description: "Received web response 2: \(#function)")
+        let receivedExpectation3 = self.expectation(description: "Received web response 3: \(#function)")
+        let testString1="This is a test"
+        let testString2="This is a test, too"
+        let testString3="This is also a test"
+        
+        let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/echo", verb:.POST): EchoWebApp()]))
+        let server = HTTPSimpleServer()
+        do {
+            try server.start(port: 0, webapp: coordinator.handle)
+            let session = URLSession(configuration: URLSessionConfiguration.default)
+            let url = URL(string: "http://localhost:\(server.port)/echo")!
+            print("Test \(#function) on port \(server.port)")
+            var request1 = URLRequest(url: url)
+            request1.httpMethod = "POST"
+            request1.httpBody = testString1.data(using: .utf8)
+            request1.setValue("text/plain", forHTTPHeaderField: "Content-Type")
+            
+            let dataTask1 = session.dataTask(with: request1) { (responseBody, rawResponse, error) in
+                let response = rawResponse as? HTTPURLResponse
+                XCTAssertNil(error, "\(error!.localizedDescription)")
+                XCTAssertNotNil(response)
+                let headers = response?.allHeaderFields ?? ["":""]
+                let connectionHeader: String = headers["Connection"] as? String ?? ""
+                let keepAliveHeader = headers["Keep-Alive"]
+                XCTAssertEqual(connectionHeader,"Keep-Alive","No Keep-Alive Connection")
+                XCTAssertNotNil(keepAliveHeader)
+                XCTAssertNotNil(responseBody,"No Keep-Alive Header")
+                XCTAssertEqual(Int(HTTPResponseStatus.ok.code), response?.statusCode ?? 0)
+                XCTAssertEqual(testString1, String(data: responseBody ?? Data(), encoding: .utf8) ?? "Nil")
+                receivedExpectation1.fulfill()
+            }
+            
+            var request2 = URLRequest(url: url)
+            request2.httpMethod = "POST"
+            request2.httpBody = testString2.data(using: .utf8)
+            request2.setValue("text/plain", forHTTPHeaderField: "Content-Type")
+            let dataTask2 = session.dataTask(with: request2) { (responseBody, rawResponse, error) in
+                let response = rawResponse as? HTTPURLResponse
+                XCTAssertNil(error, "\(error!.localizedDescription)")
+                XCTAssertNotNil(response)
+                let headers = response?.allHeaderFields ?? ["":""]
+                let connectionHeader: String = headers["Connection"] as? String ?? ""
+                let keepAliveHeader = headers["Keep-Alive"]
+                XCTAssertEqual(connectionHeader,"Keep-Alive","No Keep-Alive Connection")
+                XCTAssertNotNil(keepAliveHeader,"No Keep-Alive Header")
+                XCTAssertNotNil(responseBody)
+                XCTAssertEqual(Int(HTTPResponseStatus.ok.code), response?.statusCode ?? 0)
+                XCTAssertEqual(testString2, String(data: responseBody ?? Data(), encoding: .utf8) ?? "Nil")
+                receivedExpectation2.fulfill()
+            }
+            var request3 = URLRequest(url: url)
+            request3.httpMethod = "POST"
+            request3.httpBody = testString3.data(using: .utf8)
+            request3.setValue("text/plain", forHTTPHeaderField: "Content-Type")
+            let dataTask3 = session.dataTask(with: request3) { (responseBody, rawResponse, error) in
+                let response = rawResponse as? HTTPURLResponse
+                XCTAssertNil(error, "\(error!.localizedDescription)")
+                XCTAssertNotNil(response)
+                let headers = response?.allHeaderFields ?? ["":""]
+                let connectionHeader: String = headers["Connection"] as? String ?? ""
+                let keepAliveHeader = headers["Keep-Alive"]
+                XCTAssertEqual(connectionHeader,"Keep-Alive","No Keep-Alive Connection")
+                XCTAssertNotNil(keepAliveHeader,"No Keep-Alive Header")
+                XCTAssertNotNil(responseBody)
+                XCTAssertEqual(Int(HTTPResponseStatus.ok.code), response?.statusCode ?? 0)
+                XCTAssertEqual(testString3, String(data: responseBody ?? Data(), encoding: .utf8) ?? "Nil")
+                receivedExpectation3.fulfill()
+            }
+            dataTask1.resume()
+            dataTask2.resume()
+            dataTask3.resume()
+
+            self.waitForExpectations(timeout: 10) { (error) in
+                if let error = error {
+                    XCTFail("\(error)")
+                }
+            }
+            server.stop()
+        } catch {
+            XCTFail("Error listening on port \(0): \(error). Use server.failed(callback:) to handle")
+        }
+    }
+
 
     func testRequestLargeEchoEndToEnd() {
         HeliumLogger.use(.info)
