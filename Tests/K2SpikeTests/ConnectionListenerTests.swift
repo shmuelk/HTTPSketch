@@ -7,7 +7,9 @@
 //
 
 import XCTest
+
 @testable import K2Spike
+
 import Socket
 
 #if os(Linux)
@@ -15,6 +17,10 @@ import Socket
 #endif
 
 class ConnectionListenerTests: XCTestCase {
+    static var allTests = [
+        ("testCleanUpIdleSocket", testCleanUpIdleSocket),
+        ("testDontCleanUpIdleSocket", testDontCleanUpIdleSocket)
+    ]
 
     func testCleanUpIdleSocket() throws {
         let expectation = self.expectation(description: "Clean up socket at appropriate time.")
@@ -34,9 +40,11 @@ class ConnectionListenerTests: XCTestCase {
                     XCTAssert(connectionListener.socket.isConnected)
                     socket.close()
 
+                    parser.done()
+
                     print("Waiting \(keepAliveTimeout) seconds. cleanIdleSockets timer SHOULD close socket...")
                     DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(Int(keepAliveTimeout)), execute: {
-                        XCTAssert(connectionListener.socket.isConnected)
+                        XCTAssertFalse(connectionListener.socket.isConnected)
                         print("Success")
                         expectation.fulfill()
 

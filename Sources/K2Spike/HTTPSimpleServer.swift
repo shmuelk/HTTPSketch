@@ -21,7 +21,7 @@ import Socket
 
 /// An HTTP server that listens for connections on a socket.
 public class HTTPSimpleServer {
-
+    
     private let serverSocket: Socket
     private var connectionListenerList = ConnectionListenerCollection()
     
