@@ -7,18 +7,18 @@
 //
 
 import Foundation
-class SimpleResponseCreator: ResponseCreating {
+public class SimpleResponseCreator: ResponseCreating {
     
     typealias SimpleHandlerBlock = (_ req: HTTPRequest, _ context: RequestContext, _ body: Data) -> (reponse: HTTPResponse, responseBody: Data)
     let completionHandler: SimpleHandlerBlock
     
-    init(completionHandler:@escaping (_ req: HTTPRequest, _ context: RequestContext, _ body: Data) -> (reponse: HTTPResponse, responseBody: Data)) {
+    public init(completionHandler:@escaping (_ req: HTTPRequest, _ context: RequestContext, _ body: Data) -> (reponse: HTTPResponse, responseBody: Data)) {
         self.completionHandler = completionHandler
     }
     
     var buffer = Data()
     
-    func serve(req: HTTPRequest, context: RequestContext, res: HTTPResponseWriter ) -> HTTPBodyProcessing {
+    public func serve(req: HTTPRequest, context: RequestContext, res: HTTPResponseWriter ) -> HTTPBodyProcessing {
         return .processBody { (chunk, stop) in
             switch chunk {
             case .chunk(let data, let finishedProcessing):
