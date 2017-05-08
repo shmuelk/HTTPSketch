@@ -67,8 +67,8 @@ enum Verb: String {
 //}
 
 public struct Path: Hashable {
-    var path: String
-    var verb: Verb
+    public var path: String
+    public var verb: Verb
 
     /// The hash value.
     ///
