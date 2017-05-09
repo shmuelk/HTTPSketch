@@ -24,8 +24,8 @@ public class ConnectionListener: ParserConnecting {
     var socket: Socket?
     var parser: StreamingParser?
 
-    let socketReaderQueue: DispatchQueue
-    let socketWriterQueue: DispatchQueue
+    var socketReaderQueue: DispatchQueue?
+    var socketWriterQueue: DispatchQueue?
     var readBuffer:NSMutableData? = NSMutableData()
     var readBufferPosition = 0
     
@@ -91,6 +91,9 @@ public class ConnectionListener: ParserConnecting {
         self.socket = nil
         self.parser?.parserConnector = nil
         self.parser = nil
+        self.idleSocketTimer = nil
+        self.socketReaderQueue = nil
+        self.socketWriterQueue = nil
     }
     
     public func closeWriter() {
@@ -204,7 +207,7 @@ public class ConnectionListener: ParserConnecting {
                 Log.debug("\(#function) called with UNPRINTABLE")
             }
         }
-        self.socketWriterQueue.async {
+        self.socketWriterQueue?.async {
             self.socketWrite(from: bytes)
         }
     }
