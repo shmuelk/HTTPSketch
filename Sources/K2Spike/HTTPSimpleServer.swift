@@ -59,14 +59,15 @@ public class HTTPSimpleServer {
                     let clientSocket = try self.serverSocket.acceptClientConnection()
                     let streamingParser = StreamingParser(webapp: webapp)
                     let connectionListener = ConnectionListener(socket:clientSocket, parser: streamingParser)
-                    let worker = DispatchWorkItem { [weak connectionListener] in
+                    var worker: DispatchWorkItem!
+                    worker = DispatchWorkItem { [weak connectionListener] in
                         if let connectionListener = connectionListener {
                             connectionListener.process()
                         }
+                        worker = nil
                     }
                     DispatchQueue.global().async(execute: worker)
-                    let container = CollectionWorker(worker: worker, listener: connectionListener)
-                    self.connectionListenerList.add(container)
+                    self.connectionListenerList.add(connectionListener)
                 
                 } catch let error {
                     Log.error("Error accepting client connection: \(error)")
@@ -87,39 +88,25 @@ public class HTTPSimpleServer {
     
 }
 
-class CollectionWorker {
-    let worker:DispatchWorkItem
-    let listener: ConnectionListener
-    init(worker:DispatchWorkItem, listener: ConnectionListener) {
-        self.worker = worker
-        self.listener = listener
-    }
-}
-
 class ConnectionListenerCollection {
 
     let lock = DispatchSemaphore(value: 1)
     
-    var storage = [CollectionWorker]()
+    var storage = [ConnectionListener]()
     
-    func add(_ listener:CollectionWorker) {
+    func add(_ listener:ConnectionListener) {
         lock.wait()
         storage.append(listener)
         lock.signal()
     }
     
     func closeAll() {
-        storage.forEach { $0.listener.close(); $0.worker.cancel()}
+        storage.forEach { $0.close() }
     }
     
     func prune() {
         lock.wait()
-        storage.forEach {
-            if !$0.listener.isOpen {
-                $0.worker.cancel()
-            }
-        }
-        storage = storage.filter { $0.listener.isOpen }
+        storage = storage.filter { $0.isOpen }
         lock.signal()
     }
     

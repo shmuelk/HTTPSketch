@@ -26,6 +26,7 @@ public class ConnectionListener: ParserConnecting {
 
     var socketReaderQueue: DispatchQueue?
     var socketWriterQueue: DispatchQueue?
+
     var readBuffer:NSMutableData? = NSMutableData()
     var readBufferPosition = 0
     
@@ -133,6 +134,8 @@ public class ConnectionListener: ParserConnecting {
             guard let socket = self.socket else {
                 return
             }
+            print("process called for socket \(socket.socketfd)")
+
             try socket.setBlocking(mode: false)
             
                 readerSource = DispatchSource.makeReadSource(fileDescriptor: socket.socketfd,
