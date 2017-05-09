@@ -26,10 +26,10 @@ public class ConnectionListener {
 
     let socketReaderQueue: DispatchQueue
     let socketWriterQueue: DispatchQueue
-    let readBuffer = NSMutableData()
+    var readBuffer:NSMutableData? = NSMutableData()
     var readBufferPosition = 0
     
-    let writeBuffer = NSMutableData()
+    var writeBuffer:NSMutableData? = NSMutableData()
     var writeBufferPosition = 0
     
     private var readerSource: DispatchSourceRead?
@@ -79,6 +79,8 @@ public class ConnectionListener {
     public func close() {
         self.readerSource?.cancel()
         self.writerSource?.cancel()
+        self.readBuffer = nil
+        self.writeBuffer = nil
         self.socket.close()
     }
     
@@ -87,10 +89,14 @@ public class ConnectionListener {
         if let readerSource = self.readerSource {
             if readerSource.isCancelled {
                 self.socket.close()
+                self.readBuffer = nil
+                self.writeBuffer = nil
             }
         } else {
             //No reader source, we're good to close
             self.socket.close()
+            self.readBuffer = nil
+            self.writeBuffer = nil
         }
     }
     
@@ -99,10 +105,14 @@ public class ConnectionListener {
         if let writerSource = self.writerSource {
             if writerSource.isCancelled {
                 self.socket.close()
+                self.readBuffer = nil
+                self.writeBuffer = nil
             }
         } else {
             //No writer source, we're good to close
             self.socket.close()
+            self.readBuffer = nil
+            self.writeBuffer = nil
         }
     }
     
@@ -124,13 +134,16 @@ public class ConnectionListener {
                         }
                         
                         do {
+                            guard let readBuffer = self.readBuffer else {
+                                return
+                            }
                             var length = 1
                             while  length > 0  {
-                                length = try self.socket.read(into: self.readBuffer)
+                                length = try self.socket.read(into: readBuffer)
                             }
-                            if  self.readBuffer.length > 0  {
-                                let bytes = self.readBuffer.bytes.assumingMemoryBound(to: Int8.self) + self.readBufferPosition
-                                let length = self.readBuffer.length - self.readBufferPosition
+                            if  readBuffer.length > 0  {
+                                let bytes = readBuffer.bytes.assumingMemoryBound(to: Int8.self) + self.readBufferPosition
+                                let length = readBuffer.length - self.readBufferPosition
                                 let numberParsed = self.parser.readStream(bytes: bytes, len: length)
 
                                 self.readBufferPosition += numberParsed
@@ -200,6 +213,11 @@ public class ConnectionListener {
             return
         }
         
+        guard let writeBuffer = self.writeBuffer else {
+            return
+        }
+
+        
         do {
             let written: Int
             
@@ -211,35 +229,35 @@ public class ConnectionListener {
             }
             
             if written != length {
-                self.writeBuffer.append(bytes + written, length: length - written)
+                writeBuffer.append(bytes + written, length: length - written)
                 
                 if writerSource == nil {
                     writerSource = DispatchSource.makeWriteSource(fileDescriptor: socket.socketfd,
                                                                   queue: socketWriterQueue)
                     
                     writerSource!.setEventHandler() {
-                        if  self.writeBuffer.length != 0 {
+                        if  writeBuffer.length != 0 {
                             defer {
-                                if self.writeBuffer.length == 0, let writerSource = self.writerSource {
+                                if writeBuffer.length == 0, let writerSource = self.writerSource {
                                     writerSource.cancel()
                                 }
                             }
                             
                             guard self.socket.isActive && self.socket.socketfd > -1 else {
-                                Log.warning("Socket closed with \(self.writeBuffer.length - self.writeBufferPosition) bytes still to be written")
-                                self.writeBuffer.length = 0
+                                Log.warning("Socket closed with \(writeBuffer.length - self.writeBufferPosition) bytes still to be written")
+                                writeBuffer.length = 0
                                 self.writeBufferPosition = 0
                                 
                                 return
                             }
                             
                             do {
-                                let amountToWrite = self.writeBuffer.length - self.writeBufferPosition
+                                let amountToWrite = writeBuffer.length - self.writeBufferPosition
                                 
                                 let written: Int
                                 
                                 if amountToWrite > 0 {
-                                    written = try self.socket.write(from: self.writeBuffer.bytes + self.writeBufferPosition,
+                                    written = try self.socket.write(from: writeBuffer.bytes + self.writeBufferPosition,
                                                                     bufSize: amountToWrite)
                                 }
                                 else {
@@ -254,7 +272,7 @@ public class ConnectionListener {
                                     self.writeBufferPosition += written
                                 }
                                 else {
-                                    self.writeBuffer.length = 0
+                                    writeBuffer.length = 0
                                     self.writeBufferPosition = 0
                                 }
                             }
@@ -266,7 +284,7 @@ public class ConnectionListener {
                                 }
                                 
                                 // There was an error writing to the socket, close the socket
-                                self.writeBuffer.length = 0
+                                writeBuffer.length = 0
                                 self.writeBufferPosition = 0
                                 self.closeWriter()
                                 
