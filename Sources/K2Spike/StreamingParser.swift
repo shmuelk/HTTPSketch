@@ -105,8 +105,10 @@ public class StreamingParser: HTTPResponseWriter {
         
     }
     
-    public func readStream(bytes: UnsafePointer<Int8>!, len: Int) -> Int {
-        return http_parser_execute(&self.httpParser, &self.httpParserSettings, bytes, len)
+    public func readStream(data:Data) -> Int {
+        return data.withUnsafeBytes { (ptr) -> Int in
+            return http_parser_execute(&self.httpParser, &self.httpParserSettings, ptr, data.count)
+        }
     }
     
     enum CallbackRecord {

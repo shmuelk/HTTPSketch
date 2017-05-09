@@ -160,9 +160,8 @@ public class ConnectionListener: ParserConnecting {
                                 length = try socket.read(into: readBuffer)
                             }
                             if  readBuffer.length > 0  {
-                                let bytes = readBuffer.bytes.assumingMemoryBound(to: Int8.self) + self.readBufferPosition
-                                let length = readBuffer.length - self.readBufferPosition
-                                let numberParsed = parser.readStream(bytes: bytes, len: length)
+                                let data = Data(bytes:readBuffer.bytes.assumingMemoryBound(to: Int8.self) + self.readBufferPosition, count:readBuffer.length - self.readBufferPosition)
+                                let numberParsed = parser.readStream(data:data)
 
                                 self.readBufferPosition += numberParsed
                                 
