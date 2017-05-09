@@ -59,14 +59,9 @@ public class HTTPSimpleServer {
                     let clientSocket = try self.serverSocket.acceptClientConnection()
                     let streamingParser = StreamingParser(webapp: webapp)
                     let connectionListener = ConnectionListener(socket:clientSocket, parser: streamingParser)
-                    var worker: DispatchWorkItem!
-                    worker = DispatchWorkItem { [weak connectionListener] in
-                        if let connectionListener = connectionListener {
-                            connectionListener.process()
-                        }
-                        worker = nil
+                    DispatchQueue.global().async { [weak connectionListener] in
+                        connectionListener?.process()
                     }
-                    DispatchQueue.global().async(execute: worker)
                     self.connectionListenerList.add(connectionListener)
                 
                 } catch let error {
