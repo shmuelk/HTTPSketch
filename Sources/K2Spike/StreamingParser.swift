@@ -410,8 +410,10 @@ public class StreamingParser: HTTPResponseWriter {
             }
         }
         
-        let bodyString2=String(data:Data(dataToWrite),encoding:.utf8)!
-        Log.debug("\(#function) called with '\(bodyString2)'")
+        if Log.isLogging(.debug) {
+            let bodyString2=String(data:Data(dataToWrite),encoding:.utf8)!
+            Log.debug("\(#function) called with '\(bodyString2)'")
+        }
         self.writeToConnection?(dataToWrite)
         
         completion(Result(completion: ()))

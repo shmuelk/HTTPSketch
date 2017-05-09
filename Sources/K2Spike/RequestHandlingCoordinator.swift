@@ -26,9 +26,13 @@ public class RequestHandlingCoordinator {
         
         let (proccessedReq, processedContext) = self.runPreProcessors(req: req, context: initialContext)
         
-        let (_, responseCreator) = router.route(request: req)! //FIXME: Handle Error case
+        let routeTupple = router.route(request: req) //FIXME: Handle Error case
         
-        return responseCreator.serve(req: proccessedReq, context: processedContext, res:runPostProcessors(req: proccessedReq, context: processedContext, res: res))
+        if let responseCreator = routeTupple?.1 {
+            return responseCreator.serve(req: proccessedReq, context: processedContext, res:runPostProcessors(req: proccessedReq, context: processedContext, res: res))
+        }
+        
+        return WebAppFailureHandler().serve(req: proccessedReq, context: processedContext, res:runPostProcessors(req: proccessedReq, context: processedContext, res: res))
     }
     
     public func addPreProcessor(_ preprocessor: @escaping HTTPPreProcessing) {

@@ -76,6 +76,13 @@ public struct Router {
         guard let verb = Verb(request.method) else {
             return nil
         }
+        
+        //shortcut for exact match
+        let exactPath = Path(path: request.target, verb: verb)
+        
+        if let exactMatch = map[exactPath] {
+            return (PathComponents(parameters:[:],queries:nil), exactMatch)
+        }
 
         for (path, creator) in map {
             guard verb == path.verb,
