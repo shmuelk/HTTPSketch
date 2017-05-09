@@ -125,13 +125,13 @@ public class StreamingParser: HTTPResponseWriter {
         switch lastCallBack {
         case .headerFieldReceived:
             if let parserBuffer = self.parserBuffer {
-                self.lastHeaderName = String(data: Data(parserBuffer), encoding: .utf8)
+                self.lastHeaderName = String(data: parserBuffer, encoding: .utf8)
                 self.parserBuffer=nil
             } else {
                 Log.error("Missing parserBuffer after \(lastCallBack)")
             }
         case .headerValueReceived:
-            if let parserBuffer = self.parserBuffer, let lastHeaderName = self.lastHeaderName, let headerValue = String(data: Data(parserBuffer), encoding: .utf8) {
+            if let parserBuffer = self.parserBuffer, let lastHeaderName = self.lastHeaderName, let headerValue = String(data:parserBuffer, encoding: .utf8) {
                 self.parsedHeaders.append(newHeader: (lastHeaderName, headerValue))
                 self.lastHeaderName = nil
                 self.parserBuffer=nil
@@ -151,7 +151,7 @@ public class StreamingParser: HTTPResponseWriter {
             self.httpBodyProcessingCallback = self.webapp(request, self)
         case .urlReceived:
             if let parserBuffer = self.parserBuffer {
-                if let urlString = String(data: Data(parserBuffer), encoding: .utf8) {
+                if let urlString = String(data:parserBuffer, encoding: .utf8) {
                     self.parsedURL = URL(string: urlString)
                 }
                 self.parserBuffer=nil
