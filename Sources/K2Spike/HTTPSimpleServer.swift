@@ -26,7 +26,7 @@ public class HTTPSimpleServer {
     private var connectionListenerList = ConnectionListenerCollection()
     
     // Timer that cleans up idle sockets on expire
-    private var pruneSocketTimer: DispatchSourceTimer?
+    private let pruneSocketTimer: DispatchSourceTimer
     
     public var port: Int {
         return Int(serverSocket.listeningPort)
@@ -41,11 +41,18 @@ public class HTTPSimpleServer {
         #endif
         
         serverSocket = try! Socket.create()
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "pruneSocketTimer"))
+        timer.scheduleRepeating(deadline: .now(), interval: .seconds(Int(StreamingParser.keepAliveTimeout)))
+        pruneSocketTimer = timer
     }
     
     public func start(port: Int = 0, webapp: @escaping WebApp) throws {
         try self.serverSocket.listen(on: port, maxBacklogSize: 100)
-        self.pruneSocketTimer = makeIdleSocketTimer()
+        pruneSocketTimer.setEventHandler { [weak self] in
+            self?.connectionListenerList.prune()
+        }
+        pruneSocketTimer.resume()
+        
         DispatchQueue.global().async {
             repeat {
                 do {
@@ -76,16 +83,6 @@ public class HTTPSimpleServer {
         return connectionListenerList.count
     }
     
-    private func makeIdleSocketTimer() -> DispatchSourceTimer {
-        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "pruneSocketTimer"))
-        timer.scheduleRepeating(deadline: .now(), interval: .seconds(Int(StreamingParser.keepAliveTimeout)))
-        timer.setEventHandler { [weak self] in
-            self?.connectionListenerList.prune()
-        }
-        timer.resume()
-        return timer
-    }
-
 }
 
 class CollectionWorker {
@@ -98,42 +95,33 @@ class CollectionWorker {
 }
 
 class ConnectionListenerCollection {
-    class WeakConnectionListener<T: AnyObject> {
-        weak var value : T?
-        init (_ value: T) {
-            self.value = value
-        }
-    }
-    
+
     let lock = DispatchSemaphore(value: 1)
     
-    var storage = [WeakConnectionListener<CollectionWorker>]()
+    var storage = [CollectionWorker]()
     
     func add(_ listener:CollectionWorker) {
         lock.wait()
-        storage.append(WeakConnectionListener(listener))
+        storage.append(listener)
         lock.signal()
     }
     
     func closeAll() {
-        storage.filter { nil != $0.value }.forEach { $0.value?.listener.close(); $0.value?.worker.cancel()}
+        storage.forEach { $0.listener.close(); $0.worker.cancel()}
     }
     
     func prune() {
         lock.wait()
         storage.forEach {
-            guard let container = $0.value else {
-                return
-            }
-            if !container.listener.isOpen {
-                container.worker.cancel()
+            if !$0.listener.isOpen {
+                $0.worker.cancel()
             }
         }
-        storage = storage.filter { nil != $0.value }.filter { $0.value?.listener.isOpen ?? false }
+        storage = storage.filter { $0.listener.isOpen }
         lock.signal()
     }
     
     var count: Int {
-        return storage.filter { nil != $0.value }.count
+        return storage.count
     }
 }

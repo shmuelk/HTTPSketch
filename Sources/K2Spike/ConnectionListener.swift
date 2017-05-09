@@ -20,8 +20,8 @@ import Socket
 // MARK: HTTPServer
 
 /// An HTTP server that listens for connections on a socket.
-public class ConnectionListener {
-    var socket : Socket
+public class ConnectionListener: ParserConnecting {
+    var socket: Socket?
     var parser: StreamingParser?
 
     let socketReaderQueue: DispatchQueue
@@ -44,8 +44,7 @@ public class ConnectionListener {
         socketWriterQueue = DispatchQueue(label: "Socket Writer \(socket.remotePort)")
 
         self.parser = parser
-        parser.closeConnection = self.closeWriter
-        parser.writeToConnection = self.queueSocketWrite
+        parser.parserConnector = self
 
         idleSocketTimer = makeIdleSocketTimer()
     }
@@ -77,7 +76,10 @@ public class ConnectionListener {
     }
     
     public var isOpen: Bool {
-        return (self.socket.isActive || self.socket.isConnected)
+        guard let socket = self.socket else {
+            return false
+        }
+        return (socket.isActive || socket.isConnected)
     }
     
     public func close() {
@@ -85,9 +87,9 @@ public class ConnectionListener {
         self.writerSource?.cancel()
         self.readBuffer = nil
         self.writeBuffer = nil
-        self.socket.close()
-        self.parser?.closeConnection = nil
-        self.parser?.writeToConnection = nil
+        self.socket?.close()
+        self.socket = nil
+        self.parser?.parserConnector = nil
         self.parser = nil
     }
     
@@ -95,13 +97,13 @@ public class ConnectionListener {
         self.writerSource?.cancel()
         if let readerSource = self.readerSource {
             if readerSource.isCancelled {
-                self.socket.close()
+                self.socket?.close()
                 self.readBuffer = nil
                 self.writeBuffer = nil
             }
         } else {
             //No reader source, we're good to close
-            self.socket.close()
+            self.socket?.close()
             self.readBuffer = nil
             self.writeBuffer = nil
         }
@@ -111,13 +113,13 @@ public class ConnectionListener {
         self.readerSource?.cancel()
         if let writerSource = self.writerSource {
             if writerSource.isCancelled {
-                self.socket.close()
+                self.socket?.close()
                 self.readBuffer = nil
                 self.writeBuffer = nil
             }
         } else {
             //No writer source, we're good to close
-            self.socket.close()
+            self.socket?.close()
             self.readBuffer = nil
             self.writeBuffer = nil
         }
@@ -125,17 +127,23 @@ public class ConnectionListener {
     
     public func process() {
         do {
+            guard let socket = self.socket else {
+                return
+            }
             try socket.setBlocking(mode: false)
             
                 readerSource = DispatchSource.makeReadSource(fileDescriptor: socket.socketfd,
                                                                  queue: socketReaderQueue)
                 
                 readerSource?.setEventHandler() {
+                    guard let socket = self.socket else {
+                        return
+                    }
                     // The event handler gets called with readerSource.data == 0 continually even when there
                     // is no incoming data. Till we figure out how to set the dispatch event mask to filter out
                     // this condition, we just add a check for it.
                     if self.readerSource?.data != 0 {
-                        guard self.socket.isConnected && self.socket.socketfd > -1 else {
+                        guard socket.isConnected && socket.socketfd > -1 else {
                             self.closeReader()
                             return
                         }
@@ -149,7 +157,7 @@ public class ConnectionListener {
                             }
                             var length = 1
                             while  length > 0  {
-                                length = try self.socket.read(into: readBuffer)
+                                length = try socket.read(into: readBuffer)
                             }
                             if  readBuffer.length > 0  {
                                 let bytes = readBuffer.bytes.assumingMemoryBound(to: Int8.self) + self.readBufferPosition
@@ -162,9 +170,9 @@ public class ConnectionListener {
                         }
                         catch let error as Socket.Error {
                             if error.errorCode == Int32(Socket.SOCKET_ERR_CONNECTION_RESET) {
-                                Log.debug("Read from socket (file descriptor \(self.socket.socketfd)) reset. Error = \(error).")
+                                Log.debug("Read from socket (file descriptor \(socket.socketfd)) reset. Error = \(error).")
                             } else {
-                                Log.error("Read from socket (file descriptor \(self.socket.socketfd)) failed. Error = \(error).")
+                                Log.error("Read from socket (file descriptor \(socket.socketfd)) failed. Error = \(error).")
                             }
                         } catch {
                             Log.error("Unexpected error...")
@@ -172,7 +180,10 @@ public class ConnectionListener {
                     }
                 }
                 readerSource?.setCancelHandler() {
-                    if self.socket.socketfd > -1 {
+                    guard let socket = self.socket else {
+                        return
+                    }
+                    if socket.socketfd > -1 {
                         self.closeReader()
                     }
                 }
@@ -185,7 +196,7 @@ public class ConnectionListener {
     }
     
     
-    func queueSocketWrite(from bytes: DispatchData) {
+    func queueSocketWrite(_ bytes: DispatchData) {
         if Log.isLogging(.debug) {
             let byteDataToPrint = Data(bytes)
             let byteStringToPrint = String(data:byteDataToPrint, encoding:.utf8)
@@ -216,8 +227,12 @@ public class ConnectionListener {
                 Log.debug("\(#function) called empty")
             }
         }
+        
+        guard let socket = self.socket else {
+            return
+        }
 
-        guard self.socket.isActive && socket.socketfd > -1 else {
+        guard socket.isActive && socket.socketfd > -1 else {
             Log.warning("Socket write() called after socket \(socket.socketfd) closed")
             self.closeWriter()
             return
@@ -253,7 +268,7 @@ public class ConnectionListener {
                                 }
                             }
                             
-                            guard self.socket.isActive && self.socket.socketfd > -1 else {
+                            guard socket.isActive && socket.socketfd > -1 else {
                                 Log.warning("Socket closed with \(writeBuffer.length - self.writeBufferPosition) bytes still to be written")
                                 writeBuffer.length = 0
                                 self.writeBufferPosition = 0
@@ -267,12 +282,12 @@ public class ConnectionListener {
                                 let written: Int
                                 
                                 if amountToWrite > 0 {
-                                    written = try self.socket.write(from: writeBuffer.bytes + self.writeBufferPosition,
+                                    written = try socket.write(from: writeBuffer.bytes + self.writeBufferPosition,
                                                                     bufSize: amountToWrite)
                                 }
                                 else {
                                     if amountToWrite < 0 {
-                                        Log.error("Amount of bytes to write to file descriptor \(self.socket.socketfd) was negative \(amountToWrite)")
+                                        Log.error("Amount of bytes to write to file descriptor \(socket.socketfd) was negative \(amountToWrite)")
                                     }
                                     
                                     written = amountToWrite
@@ -288,9 +303,9 @@ public class ConnectionListener {
                             }
                             catch let error {
                                 if let error = error as? Socket.Error, error.errorCode == Int32(Socket.SOCKET_ERR_CONNECTION_RESET) {
-                                    Log.debug("Write to socket (file descriptor \(self.socket.socketfd)) failed. Error = \(error).")
+                                    Log.debug("Write to socket (file descriptor \(socket.socketfd)) failed. Error = \(error).")
                                 } else {
-                                    Log.error("Write to socket (file descriptor \(self.socket.socketfd)) failed. Error = \(error).")
+                                    Log.error("Write to socket (file descriptor \(socket.socketfd)) failed. Error = \(error).")
                                 }
                                 
                                 // There was an error writing to the socket, close the socket
