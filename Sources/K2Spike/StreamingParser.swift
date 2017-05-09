@@ -20,14 +20,14 @@ public class StreamingParser: HTTPResponseWriter {
 
     let webapp : WebApp
     
-    let keepAliveTimeout: TimeInterval = 5
-    let maxRequests = 100
+    static let keepAliveTimeout: TimeInterval = 5
     var clientRequestedKeepAlive = false
-    
+    var keepAliveUntil: TimeInterval?
+
+    let maxRequests = 100
+
     var parserBuffer: DispatchData?
-    
-    /// The socket if idle will be kep alive until...
-    var keepAliveUntil: TimeInterval = 0.0
+
     ///HTTP Parser
     var httpParser = http_parser()
     var httpParserSettings = http_parser_settings()
@@ -196,7 +196,7 @@ public class StreamingParser: HTTPResponseWriter {
         processCurrentCallback(.headersCompleted)
         //This needs to be set here and not messageCompleted if it's going to work here
         self.clientRequestedKeepAlive = (http_should_keep_alive(&httpParser) == 1)
-        self.keepAliveUntil = Date(timeIntervalSinceNow: keepAliveTimeout).timeIntervalSinceReferenceDate
+        self.keepAliveUntil = Date(timeIntervalSinceNow: StreamingParser.keepAliveTimeout).timeIntervalSinceReferenceDate
         return 0
     }
     
@@ -303,7 +303,7 @@ public class StreamingParser: HTTPResponseWriter {
         
             if  clientRequestedKeepAlive {
                 headers.append("Connection: Keep-Alive\r\n")
-                headers.append("Keep-Alive: timeout=\(Int(keepAliveTimeout)), max=\(maxRequests)\r\n")
+                headers.append("Keep-Alive: timeout=\(Int(StreamingParser.keepAliveTimeout)), max=\(maxRequests)\r\n")
             }
             else {
                 headers.append("Connection: Close\r\n")
@@ -433,7 +433,7 @@ public class StreamingParser: HTTPResponseWriter {
         }
         
         if clientRequestedKeepAlive {
-            keepAliveUntil = Date(timeIntervalSinceNow:keepAliveTimeout).timeIntervalSinceReferenceDate
+            keepAliveUntil = Date(timeIntervalSinceNow:StreamingParser.keepAliveTimeout).timeIntervalSinceReferenceDate
             self.parsedHTTPMethod = nil
             self.parsedURL=nil
             self.parsedHeaders = HTTPHeaders()

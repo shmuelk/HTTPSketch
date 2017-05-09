@@ -85,7 +85,7 @@ class ConnectionListenerCollection {
     }
     
     func closeAll() {
-        storage.filter { nil != $0.value }.forEach {$0.value?.close()}
+        storage.filter { nil != $0.value }.forEach { $0.value?.close() }
     }
     
     var count: Int {
