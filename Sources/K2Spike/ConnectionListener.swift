@@ -141,24 +141,28 @@ public class ConnectionListener: ParserConnecting {
                 readerSource = DispatchSource.makeReadSource(fileDescriptor: socket.socketfd,
                                                                  queue: socketReaderQueue)
                 
-                readerSource?.setEventHandler() {
-                    guard let socket = self.socket else {
+            readerSource?.setEventHandler() { [ weak self ] in
+                guard let strongSelf = self else {
+                    return
+                }
+
+                    guard let socket = strongSelf.socket else {
                         return
                     }
                     // The event handler gets called with readerSource.data == 0 continually even when there
                     // is no incoming data. Till we figure out how to set the dispatch event mask to filter out
                     // this condition, we just add a check for it.
-                    if self.readerSource?.data != 0 {
+                    if strongSelf.readerSource?.data != 0 {
                         guard socket.isConnected && socket.socketfd > -1 else {
-                            self.closeReader()
+                            strongSelf.closeReader()
                             return
                         }
                         
                         do {
-                            guard let readBuffer = self.readBuffer else {
+                            guard let readBuffer = strongSelf.readBuffer else {
                                 return
                             }
-                            guard let parser = self.parser else {
+                            guard let parser = strongSelf.parser else {
                                 return
                             }
                             var length = 1
@@ -166,10 +170,10 @@ public class ConnectionListener: ParserConnecting {
                                 length = try socket.read(into: readBuffer)
                             }
                             if  readBuffer.length > 0  {
-                                let data = Data(bytes:readBuffer.bytes.assumingMemoryBound(to: Int8.self) + self.readBufferPosition, count:readBuffer.length - self.readBufferPosition)
+                                let data = Data(bytes:readBuffer.bytes.assumingMemoryBound(to: Int8.self) + strongSelf.readBufferPosition, count:readBuffer.length - strongSelf.readBufferPosition)
                                 let numberParsed = parser.readStream(data:data)
 
-                                self.readBufferPosition += numberParsed
+                                strongSelf.readBufferPosition += numberParsed
                                 
                             }
                         }
@@ -184,12 +188,16 @@ public class ConnectionListener: ParserConnecting {
                         }
                     }
                 }
-                readerSource?.setCancelHandler() {
-                    guard let socket = self.socket else {
+            readerSource?.setCancelHandler() { [ weak self ] in
+                guard let strongSelf = self else {
+                    return
+                }
+
+                    guard let socket = strongSelf.socket else {
                         return
                     }
                     if socket.socketfd > -1 {
-                        self.closeReader()
+                        strongSelf.closeReader()
                     }
                 }
                 readerSource?.resume()
@@ -210,8 +218,8 @@ public class ConnectionListener: ParserConnecting {
                 Log.debug("\(#function) called with UNPRINTABLE")
             }
         }
-        self.socketWriterQueue?.async {
-            self.socketWrite(from: bytes)
+        self.socketWriterQueue?.async { [ weak self ] in
+            self?.socketWrite(from: bytes)
         }
     }
 
@@ -269,29 +277,32 @@ public class ConnectionListener: ParserConnecting {
                     writerSource = DispatchSource.makeWriteSource(fileDescriptor: socket.socketfd,
                                                                   queue: socketWriterQueue)
                     
-                    writerSource!.setEventHandler() {
+                    writerSource!.setEventHandler() { [ weak self ] in
+                        guard let strongSelf = self else {
+                            return
+                        }
                         if  writeBuffer.length != 0 {
                             defer {
-                                if writeBuffer.length == 0, let writerSource = self.writerSource {
+                                if writeBuffer.length == 0, let writerSource = strongSelf.writerSource {
                                     writerSource.cancel()
                                 }
                             }
                             
                             guard socket.isActive && socket.socketfd > -1 else {
-                                Log.warning("Socket closed with \(writeBuffer.length - self.writeBufferPosition) bytes still to be written")
+                                Log.warning("Socket closed with \(writeBuffer.length - strongSelf.writeBufferPosition) bytes still to be written")
                                 writeBuffer.length = 0
-                                self.writeBufferPosition = 0
+                                strongSelf.writeBufferPosition = 0
                                 
                                 return
                             }
                             
                             do {
-                                let amountToWrite = writeBuffer.length - self.writeBufferPosition
+                                let amountToWrite = writeBuffer.length - strongSelf.writeBufferPosition
                                 
                                 let written: Int
                                 
                                 if amountToWrite > 0 {
-                                    written = try socket.write(from: writeBuffer.bytes + self.writeBufferPosition,
+                                    written = try socket.write(from: writeBuffer.bytes + strongSelf.writeBufferPosition,
                                                                     bufSize: amountToWrite)
                                 }
                                 else {
@@ -303,11 +314,11 @@ public class ConnectionListener: ParserConnecting {
                                 }
                                 
                                 if written != amountToWrite {
-                                    self.writeBufferPosition += written
+                                    strongSelf.writeBufferPosition += written
                                 }
                                 else {
                                     writeBuffer.length = 0
-                                    self.writeBufferPosition = 0
+                                    strongSelf.writeBufferPosition = 0
                                 }
                             }
                             catch let error {
@@ -319,15 +330,18 @@ public class ConnectionListener: ParserConnecting {
                                 
                                 // There was an error writing to the socket, close the socket
                                 writeBuffer.length = 0
-                                self.writeBufferPosition = 0
-                                self.closeWriter()
+                                strongSelf.writeBufferPosition = 0
+                                strongSelf.closeWriter()
                                 
                             }
                         }
                     }
-                    writerSource!.setCancelHandler() {
-                        self.closeWriter()
-                        self.writerSource = nil
+                    writerSource!.setCancelHandler() { [ weak self ] in
+                        guard let strongSelf = self else {
+                            return
+                        }
+                        strongSelf.closeWriter()
+                        strongSelf.writerSource = nil
                     }
                     writerSource!.resume()
                 }
