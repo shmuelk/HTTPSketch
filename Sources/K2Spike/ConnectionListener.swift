@@ -207,19 +207,19 @@ public class ConnectionListener: ParserConnecting {
             }
         }
         self.socketWriterQueue.async {
-            bytes.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-                self.socketWrite(from: ptr, length: bytes.count)
-            }
+            self.socketWrite(from: bytes)
         }
     }
 
-    func socketWrite(from bytes: UnsafeRawPointer, length: Int) {
+    func socketWrite(from bytes: DispatchData) {
+        let length = bytes.count
+        
         if Log.isLogging(.debug) {
-            if length > 0 {
-                let byteDataToPrint = Data(bytes:bytes, count:length)
+            if bytes.count > 0 {
+                let byteDataToPrint = Data(bytes)
                 let byteStringToPrint = String(data:byteDataToPrint, encoding:.utf8)
                 if let byteStringToPrint = byteStringToPrint {
-                    Log.debug("\(#function) called with '\(byteStringToPrint)' to \(length)")
+                    Log.debug("\(#function) called with '\(byteStringToPrint)' to \(bytes.count)")
                 } else {
                     Log.debug("\(#function) called with UNPRINTABLE")
                 }
@@ -244,17 +244,23 @@ public class ConnectionListener: ParserConnecting {
 
         
         do {
-            let written: Int
+            var written: Int = 0
             
             if  writeBuffer.length == 0 {
-                written = try socket.write(from: bytes, bufSize: length)
+                try bytes.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
+                    written = try socket.write(from: ptr, bufSize: length)
+                }
+
             }
             else {
                 written = 0
             }
             
             if written != length {
-                writeBuffer.append(bytes + written, length: length - written)
+                bytes.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
+                    writeBuffer.append(ptr + written, length: length - written)
+                }
+
                 
                 if writerSource == nil {
                     writerSource = DispatchSource.makeWriteSource(fileDescriptor: socket.socketfd,
