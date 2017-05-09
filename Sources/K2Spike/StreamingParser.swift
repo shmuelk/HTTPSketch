@@ -272,9 +272,7 @@ public class StreamingParser: HTTPResponseWriter {
         
         // TODO use requested encoding if specified
         if let data = status.data(using: .utf8) {
-            data.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-                self.parserConnector?.queueSocketWrite(DispatchData(bytes: UnsafeBufferPointer(start: ptr, count: data.count)))
-            }
+            self.parserConnector?.queueSocketWrite(data)
         } else {
             //TODO handle encoding error
         }
@@ -312,9 +310,7 @@ public class StreamingParser: HTTPResponseWriter {
 
         // TODO use requested encoding if specified
         if let data = headers.data(using: .utf8) {
-            data.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-                self.parserConnector?.queueSocketWrite(DispatchData(bytes: UnsafeBufferPointer(start: ptr, count: data.count)))
-            }
+            self.parserConnector?.queueSocketWrite(data)
             headersWritten = true
         } else {
             //TODO handle encoding error
@@ -326,43 +322,9 @@ public class StreamingParser: HTTPResponseWriter {
     }
     
     public func writeBody(data: DispatchData, completion: @escaping (Result<POSIXError, ()>) -> Void) {
-        if Log.isLogging(.debug) {
-            let bodyString=String(data:Data(data),encoding:.utf8)!
-            Log.debug("\(#function) about to write '\(bodyString)'")
-        }
-
-        guard headersWritten else {
-            //TODO error or default headers?
-            return
-        }
-        
-        guard data.count > 0 else {
-            // TODO fix Result
-            completion(Result(completion: ()))
-            return
-        }
-        
-        var dataToWrite: DispatchData!
-        if isChunked {
-            let chunkStart = (String(data.count, radix: 16) + "\r\n").data(using: .utf8)!
-            chunkStart.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-                dataToWrite = DispatchData(bytes: UnsafeBufferPointer<UInt8>(start: ptr, count: chunkStart.count))
-            }
-            
-            dataToWrite.append(data)
-            
-            let chunkEnd = "\r\n".data(using: .utf8)!
-            chunkEnd.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-                dataToWrite.append(ptr, count: chunkEnd.count)
-            }
-        } else {
-            dataToWrite = data
-        }
-        
-        self.parserConnector?.queueSocketWrite(dataToWrite)
-        
-        completion(Result(completion: ()))
+        writeBody(data: Data(data), completion: completion)
     }
+    
     
     public func writeBody(data: DispatchData) /* convenience */ {
         writeBody(data: data) { _ in
@@ -387,25 +349,15 @@ public class StreamingParser: HTTPResponseWriter {
             return
         }
         
-        var dataToWrite: DispatchData!
+        var dataToWrite: Data!
         if isChunked {
             let chunkStart = (String(data.count, radix: 16) + "\r\n").data(using: .utf8)!
-            chunkStart.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-                dataToWrite = DispatchData(bytes: UnsafeBufferPointer<UInt8>(start: ptr, count: chunkStart.count))
-            }
-            
-            data.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-                dataToWrite.append(ptr, count: data.count)
-            }
-            
+            dataToWrite = Data(chunkStart)
+            dataToWrite.append(data)
             let chunkEnd = "\r\n".data(using: .utf8)!
-            chunkEnd.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-                dataToWrite.append(ptr, count: chunkEnd.count)
-            }
+            dataToWrite.append(chunkEnd)
         } else {
-            data.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-                dataToWrite = DispatchData(bytes: UnsafeBufferPointer<UInt8>(start: ptr, count: data.count))
-            }
+            dataToWrite = data
         }
         
         if Log.isLogging(.debug) {
@@ -426,10 +378,7 @@ public class StreamingParser: HTTPResponseWriter {
     public func done(completion: @escaping (Result<POSIXError, ()>) -> Void) {
         if isChunked {
             let chunkTerminate = "0\r\n\r\n".data(using: .utf8)!
-            chunkTerminate.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
-                self.parserConnector?.queueSocketWrite(DispatchData(bytes: UnsafeBufferPointer<UInt8>(start: ptr, count: chunkTerminate.count)))
-            }
-
+            self.parserConnector?.queueSocketWrite(chunkTerminate)
         }
         
         self.parsedHTTPMethod = nil
@@ -468,6 +417,6 @@ public class StreamingParser: HTTPResponseWriter {
 }
 
 protocol ParserConnecting: class {
-    func queueSocketWrite(_ from: DispatchData) -> Void
+    func queueSocketWrite(_ from: Data) -> Void
     func closeWriter() -> Void
 }

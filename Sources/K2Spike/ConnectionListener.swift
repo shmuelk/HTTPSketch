@@ -196,10 +196,9 @@ public class ConnectionListener: ParserConnecting {
     }
     
     
-    func queueSocketWrite(_ bytes: DispatchData) {
+    func queueSocketWrite(_ bytes: Data) {
         if Log.isLogging(.debug) {
-            let byteDataToPrint = Data(bytes)
-            let byteStringToPrint = String(data:byteDataToPrint, encoding:.utf8)
+            let byteStringToPrint = String(data:bytes, encoding:.utf8)
             if let byteStringToPrint = byteStringToPrint {
                 Log.debug("\(#function) called with '\(byteStringToPrint)'")
             } else {
@@ -211,13 +210,12 @@ public class ConnectionListener: ParserConnecting {
         }
     }
 
-    func socketWrite(from bytes: DispatchData) {
+    func socketWrite(from bytes: Data) {
         let length = bytes.count
         
         if Log.isLogging(.debug) {
             if bytes.count > 0 {
-                let byteDataToPrint = Data(bytes)
-                let byteStringToPrint = String(data:byteDataToPrint, encoding:.utf8)
+                let byteStringToPrint = String(data:bytes, encoding:.utf8)
                 if let byteStringToPrint = byteStringToPrint {
                     Log.debug("\(#function) called with '\(byteStringToPrint)' to \(bytes.count)")
                 } else {
