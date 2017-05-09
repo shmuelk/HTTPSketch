@@ -22,7 +22,7 @@ import Socket
 /// An HTTP server that listens for connections on a socket.
 public class ConnectionListener {
     var socket : Socket
-    let parser: StreamingParser
+    var parser: StreamingParser?
 
     let socketReaderQueue: DispatchQueue
     let socketWriterQueue: DispatchQueue
@@ -62,7 +62,7 @@ public class ConnectionListener {
 
     private func closeIdleSocket() {
         let now = Date().timeIntervalSinceReferenceDate
-        if let keepAliveUntil = parser.keepAliveUntil, now >= keepAliveUntil {
+        if let keepAliveUntil = parser?.keepAliveUntil, now >= keepAliveUntil {
             close()
         }
     }
@@ -76,12 +76,19 @@ public class ConnectionListener {
         idleSocketTimer = nil
     }
     
+    public var isOpen: Bool {
+        return (self.socket.isActive || self.socket.isConnected)
+    }
+    
     public func close() {
         self.readerSource?.cancel()
         self.writerSource?.cancel()
         self.readBuffer = nil
         self.writeBuffer = nil
         self.socket.close()
+        self.parser?.closeConnection = nil
+        self.parser?.writeToConnection = nil
+        self.parser = nil
     }
     
     public func closeWriter() {
@@ -137,6 +144,9 @@ public class ConnectionListener {
                             guard let readBuffer = self.readBuffer else {
                                 return
                             }
+                            guard let parser = self.parser else {
+                                return
+                            }
                             var length = 1
                             while  length > 0  {
                                 length = try self.socket.read(into: readBuffer)
@@ -144,7 +154,7 @@ public class ConnectionListener {
                             if  readBuffer.length > 0  {
                                 let bytes = readBuffer.bytes.assumingMemoryBound(to: Int8.self) + self.readBufferPosition
                                 let length = readBuffer.length - self.readBufferPosition
-                                let numberParsed = self.parser.readStream(bytes: bytes, len: length)
+                                let numberParsed = parser.readStream(bytes: bytes, len: length)
 
                                 self.readBufferPosition += numberParsed
                                 
