@@ -23,7 +23,7 @@ public class StreamingParser: HTTPResponseWriter {
 
     let maxRequests = 100
 
-    var parserBuffer: DispatchData?
+    var parserBuffer: Data?
 
     ///HTTP Parser
     var httpParser = http_parser()
@@ -204,8 +204,7 @@ public class StreamingParser: HTTPResponseWriter {
         processCurrentCallback(.headerFieldReceived)
         guard let data = data else { return 0 }
         data.withMemoryRebound(to: UInt8.self, capacity: length) { (ptr) -> Void in
-            let buff = UnsafeBufferPointer<UInt8>(start: ptr, count: length)
-            self.parserBuffer == nil ? self.parserBuffer = DispatchData(bytes:buff) : self.parserBuffer?.append(buff)
+            self.parserBuffer == nil ? self.parserBuffer = Data(bytes:data, count:length) : self.parserBuffer?.append(ptr, count:length)
         }
         return 0
     }
@@ -214,8 +213,7 @@ public class StreamingParser: HTTPResponseWriter {
         processCurrentCallback(.headerValueReceived)
         guard let data = data else { return 0 }
         data.withMemoryRebound(to: UInt8.self, capacity: length) { (ptr) -> Void in
-            let buff = UnsafeBufferPointer<UInt8>(start: ptr, count: length)
-            self.parserBuffer == nil ? self.parserBuffer = DispatchData(bytes:buff) : self.parserBuffer?.append(buff)
+            self.parserBuffer == nil ? self.parserBuffer = Data(bytes:data, count:length) : self.parserBuffer?.append(ptr, count:length)
         }
         return 0
     }
@@ -249,8 +247,7 @@ public class StreamingParser: HTTPResponseWriter {
         processCurrentCallback(.urlReceived)
         guard let data = data else { return 0 }
         data.withMemoryRebound(to: UInt8.self, capacity: length) { (ptr) -> Void in
-            let buff = UnsafeBufferPointer<UInt8>(start: ptr, count: length)
-            self.parserBuffer == nil ? self.parserBuffer = DispatchData(bytes:buff) : self.parserBuffer?.append(buff)
+            self.parserBuffer == nil ? self.parserBuffer = Data(bytes:data, count:length) : self.parserBuffer?.append(ptr, count:length)
         }
         return 0
     }
