@@ -39,6 +39,7 @@ public class StreamingParser: HTTPResponseWriter {
     var parsedHTTPMethod: HTTPMethod?
     var parsedHTTPVersion: HTTPVersion?
     var parsedURL: URL?
+    var dummyString: String?
 
 
     public init(webapp: @escaping WebApp) {
@@ -151,6 +152,11 @@ public class StreamingParser: HTTPResponseWriter {
             self.httpBodyProcessingCallback = self.webapp(request, self)
         case .urlReceived:
             if let parserBuffer = self.parserBuffer {
+                //Eat a byte
+                parserBuffer.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) -> Void in
+                    let dummyData = Data(bytes: ptr, count: 1)
+                    self.dummyString = String(data:dummyData, encoding: .utf8)
+                }
                 if let urlString = String(data:parserBuffer, encoding: .utf8) {
                     self.parsedURL = URL(string: urlString)
                 }
