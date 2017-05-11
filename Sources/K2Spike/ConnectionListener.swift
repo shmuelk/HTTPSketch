@@ -118,7 +118,9 @@ public class ConnectionListener: ParserConnecting {
     }
     
     public func closeReader() {
-        self.readerSource?.cancel()
+        if !(self.readerSource?.isCancelled ?? true) {
+            self.readerSource?.cancel()
+        }
         if let writerSource = self.writerSource {
             if writerSource.isCancelled {
                 self.socket?.close()
