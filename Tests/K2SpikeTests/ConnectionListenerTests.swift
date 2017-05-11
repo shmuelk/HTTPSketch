@@ -36,7 +36,7 @@ class ConnectionListenerTests: XCTestCase {
                     let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldWebApp()]))
                     let parser = StreamingParser(webapp: coordinator.handle)
                     let connectionListener = ConnectionListener(socket: newSocket, parser: parser)
-                    XCTAssert(connectionListener.socket.isConnected)
+                    XCTAssert(connectionListener.socket?.isConnected ?? false)
 
                     socket.close()
 
@@ -44,7 +44,7 @@ class ConnectionListenerTests: XCTestCase {
 
                     print("Waiting \(keepAliveTimeout) seconds. cleanIdleSockets timer SHOULD close socket...")
                     DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(Int(keepAliveTimeout)), execute: {
-                        XCTAssertFalse(connectionListener.socket.isConnected)
+                        XCTAssertFalse(connectionListener.socket?.isConnected ?? false)
                         print("Success")
                         expectation.fulfill()
                     })
@@ -80,7 +80,7 @@ class ConnectionListenerTests: XCTestCase {
                     let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldWebApp()]))
                     let parser = StreamingParser(webapp: coordinator.handle)
                     let connectionListener = ConnectionListener(socket: newSocket, parser: parser)
-                    XCTAssert(connectionListener.socket.isConnected)
+                    XCTAssert(connectionListener.socket?.isConnected ?? false)
 
                     socket.close()
 
@@ -89,16 +89,16 @@ class ConnectionListenerTests: XCTestCase {
                         print("Setting keepAliveTimeout to 5 seconds from now...")
                         parser.clientRequestedKeepAlive = true
                         parser.done()
-                        XCTAssert(connectionListener.socket.isConnected)
+                        XCTAssert(connectionListener.socket?.isConnected ?? false)
 
                         print("Waiting \(keepAliveTimeout) seconds. cleanIdleSockets timer should NOT close socket...")
                         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(Int(keepAliveTimeout)), execute: {
-                            XCTAssert(connectionListener.socket.isConnected)
+                            XCTAssert(connectionListener.socket?.isConnected ?? false)
                             print("Success")
 
                             print("Waiting another \(keepAliveTimeout) seconds. cleanIdleSockets timer SHOULD close socket...")
                             DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(Int(keepAliveTimeout)), execute: {
-                                XCTAssertFalse(connectionListener.socket.isConnected)
+                                XCTAssertFalse(connectionListener.socket?.isConnected ?? false)
                                 print("Success")
                                 expectation.fulfill()
                             })

@@ -86,6 +86,7 @@ public class ConnectionListener: ParserConnecting {
     public func close() {
         self.readerSource?.cancel()
         self.writerSource?.cancel()
+        self.idleSocketTimer?.cancel()
         self.readBuffer = nil
         self.writeBuffer = nil
         self.socket?.close()
@@ -103,6 +104,9 @@ public class ConnectionListener: ParserConnecting {
             if readerSource.isCancelled {
                 self.socket?.close()
                 self.readBuffer = nil
+                self.writeBuffer = nil
+            } else {
+                self.readerSource?.cancel()
                 self.writeBuffer = nil
             }
         } else {
@@ -144,6 +148,14 @@ public class ConnectionListener: ParserConnecting {
             readerSource?.setEventHandler() { [ weak self ] in
                 guard let strongSelf = self else {
                     return
+                }
+                
+                if let thisReaderSource = strongSelf.readerSource {
+                    if thisReaderSource.isCancelled {
+                        //We're canceled
+                        strongSelf.closeReader()
+                        return
+                    }
                 }
 
                     guard let socket = strongSelf.socket else {
@@ -281,6 +293,13 @@ public class ConnectionListener: ParserConnecting {
                         guard let strongSelf = self else {
                             return
                         }
+                        if let thisWriterSource = strongSelf.writerSource {
+                            if thisWriterSource.isCancelled {
+                                //We're canceled
+                                return
+                            }
+                        }
+
                         if  writeBuffer.length != 0 {
                             defer {
                                 if writeBuffer.length == 0, let writerSource = strongSelf.writerSource {
