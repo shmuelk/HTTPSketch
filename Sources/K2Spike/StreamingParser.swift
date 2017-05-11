@@ -19,7 +19,25 @@ public class StreamingParser: HTTPResponseWriter {
     
     static let keepAliveTimeout: TimeInterval = 5
     var clientRequestedKeepAlive = false
-    var keepAliveUntil: TimeInterval?
+    
+    private let _keepAliveUntilLock = DispatchSemaphore(value: 1)
+    private var _keepAliveUntil: TimeInterval?
+    var keepAliveUntil: TimeInterval? {
+        get {
+            _keepAliveUntilLock.wait()
+            defer {
+                 _keepAliveUntilLock.signal()
+            }
+            return _keepAliveUntil
+        }
+        set {
+            _keepAliveUntilLock.wait()
+            defer {
+                _keepAliveUntilLock.signal()
+            }
+            _keepAliveUntil = newValue
+        }
+    }
 
     let maxRequests = 100
 

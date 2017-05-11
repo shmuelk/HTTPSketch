@@ -30,11 +30,63 @@ public class ConnectionListener: ParserConnecting {
     var readBuffer:NSMutableData? = NSMutableData()
     var readBufferPosition = 0
     
-    var writeBuffer:NSMutableData? = NSMutableData()
-    var writeBufferPosition = 0
+    private let _writeBufferLock = DispatchSemaphore(value: 1)
+    private var _writeBuffer: NSMutableData? = NSMutableData()
+    var writeBuffer: NSMutableData? {
+        get {
+            _writeBufferLock.wait()
+            defer {
+                _writeBufferLock.signal()
+            }
+            return _writeBuffer
+        }
+        set {
+            _writeBufferLock.wait()
+            defer {
+                _writeBufferLock.signal()
+            }
+            _writeBuffer = newValue
+        }
+    }
+    private let _writeBufferPositionLock = DispatchSemaphore(value: 1)
+    private var _writeBufferPosition: Int = 0
+    var writeBufferPosition: Int {
+        get {
+            _writeBufferPositionLock.wait()
+            defer {
+                _writeBufferPositionLock.signal()
+            }
+            return _writeBufferPosition
+        }
+        set {
+            _writeBufferPositionLock.wait()
+            defer {
+                _writeBufferPositionLock.signal()
+            }
+            _writeBufferPosition = newValue
+        }
+    }
     
     private var readerSource: DispatchSourceRead?
-    private var writerSource: DispatchSourceWrite?
+    
+    private let _writerSourceLock = DispatchSemaphore(value: 1)
+    private var _writerSource: DispatchSourceWrite?
+    var writerSource: DispatchSourceWrite? {
+        get {
+            _writerSourceLock.wait()
+            defer {
+                _writerSourceLock.signal()
+            }
+            return _writerSource
+        }
+        set {
+            _writerSourceLock.wait()
+            defer {
+                _writerSourceLock.signal()
+            }
+            _writerSource = newValue
+        }
+    }
 
     // Timer that cleans up idle sockets on expire
     private var idleSocketTimer: DispatchSourceTimer?
@@ -43,7 +95,6 @@ public class ConnectionListener: ParserConnecting {
         self.socket = socket
         socketReaderQueue = DispatchQueue(label: "Socket Reader \(socket.remotePort)")
         socketWriterQueue = DispatchQueue(label: "Socket Writer \(socket.remotePort)")
-
         self.parser = parser
         parser.parserConnector = self
 
