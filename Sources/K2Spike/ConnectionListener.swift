@@ -24,8 +24,7 @@ public class ConnectionListener: ParserConnecting {
     var socket: Socket?
     var parser: StreamingParser?
 
-    var socketReaderQueue: DispatchQueue?
-    var socketWriterQueue: DispatchQueue?
+    var socketQueue: DispatchQueue?
 
     var readBuffer:NSMutableData? = NSMutableData()
     var readBufferPosition = 0
@@ -93,8 +92,7 @@ public class ConnectionListener: ParserConnecting {
 
     public init(socket: Socket, parser: StreamingParser) {
         self.socket = socket
-        socketReaderQueue = DispatchQueue(label: "Socket Reader \(socket.remotePort)")
-        socketWriterQueue = DispatchQueue(label: "Socket Writer \(socket.remotePort)")
+        socketQueue = DispatchQueue(label: "Socket \(socket.remotePort)")
         self.parser = parser
         parser.parserConnector = self
 
@@ -208,7 +206,7 @@ public class ConnectionListener: ParserConnecting {
             try socket.setBlocking(mode: false)
             
                 readerSource = DispatchSource.makeReadSource(fileDescriptor: socket.socketfd,
-                                                                 queue: socketReaderQueue)
+                                                                 queue: socketQueue)
                 
             readerSource?.setEventHandler() { [ weak self ] in
                 guard let strongSelf = self else {
@@ -286,7 +284,7 @@ public class ConnectionListener: ParserConnecting {
     }
     
     public func queueSocketClose() {
-        self.socketWriterQueue?.async { [ weak self ] in
+        self.socketQueue?.async { [ weak self ] in
             self?.closeWriter()
         }
     }
@@ -300,7 +298,7 @@ public class ConnectionListener: ParserConnecting {
                 Log.debug("\(#function) called with UNPRINTABLE")
             }
         }
-        self.socketWriterQueue?.async { [ weak self ] in
+        self.socketQueue?.async { [ weak self ] in
             self?.socketWrite(from: bytes)
         }
     }
@@ -357,7 +355,7 @@ public class ConnectionListener: ParserConnecting {
                 
                 if writerSource == nil {
                     writerSource = DispatchSource.makeWriteSource(fileDescriptor: socket.socketfd,
-                                                                  queue: socketWriterQueue)
+                                                                  queue: socketQueue)
                     
                     writerSource!.setEventHandler() { [ weak self ] in
                         guard let strongSelf = self else {
