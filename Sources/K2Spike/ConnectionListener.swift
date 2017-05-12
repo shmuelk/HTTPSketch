@@ -113,12 +113,15 @@ public class ConnectionListener: ParserConnecting {
                 self.readerSource?.cancel()
                 self.writeBuffer = nil
             }
-        } else {
+        } 
+/*
+	else {
             //No reader source, we're good to close
             self.socket?.close()
             self.readBuffer = nil
             self.writeBuffer = nil
         }
+*/
     }
     
     public func closeReader() {
