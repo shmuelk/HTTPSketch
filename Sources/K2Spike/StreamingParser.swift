@@ -400,10 +400,18 @@ public class StreamingParser: HTTPResponseWriter {
         if clientRequestedKeepAlive {
             keepAliveUntil = Date(timeIntervalSinceNow:StreamingParser.keepAliveTimeout).timeIntervalSinceReferenceDate
         } else {
-            self.parserConnector?.closeWriter()
+            self.parserConnector?.queueSocketClose()
         }
         
-        completion(Result(completion: ()))
+        let closeAfter = {
+            if self.clientRequestedKeepAlive {
+                self.keepAliveUntil = Date(timeIntervalSinceNow:StreamingParser.keepAliveTimeout).timeIntervalSinceReferenceDate
+            } else {
+                self.parserConnector?.queueSocketClose()
+            }
+        }
+        
+        completion(Result(completion: closeAfter()))
     }
     
     public func done() /* convenience */ {
@@ -423,5 +431,5 @@ public class StreamingParser: HTTPResponseWriter {
 
 protocol ParserConnecting: class {
     func queueSocketWrite(_ from: Data) -> Void
-    func closeWriter() -> Void
+    func queueSocketClose() -> Void
 }

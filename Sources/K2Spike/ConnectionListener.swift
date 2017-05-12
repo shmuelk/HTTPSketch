@@ -83,7 +83,7 @@ public class ConnectionListener: ParserConnecting {
         return (socket.isActive || socket.isConnected)
     }
     
-    public func close() {
+     func close() {
 //        print("\(#function) called from:")
 //        Thread.callStackSymbols.forEach{print(" \($0)")}
 //        print("")
@@ -99,11 +99,12 @@ public class ConnectionListener: ParserConnecting {
         self.idleSocketTimer = nil
     }
     
-    public func closeWriter() {
+    func closeWriter() {
 //        print("\(#function) called from:")
 //        Thread.callStackSymbols.forEach{print(" \($0)")}
 //        print("")
         self.writerSource?.cancel()
+        
         if let readerSource = self.readerSource {
             if readerSource.isCancelled {
                 self.socket?.close()
@@ -114,14 +115,12 @@ public class ConnectionListener: ParserConnecting {
                 self.writeBuffer = nil
             }
         } 
-/*
 	else {
             //No reader source, we're good to close
             self.socket?.close()
             self.readBuffer = nil
             self.writeBuffer = nil
         }
-*/
     }
     
     public func closeReader() {
@@ -235,6 +234,11 @@ public class ConnectionListener: ParserConnecting {
         
     }
     
+    public func queueSocketClose() {
+        self.socketWriterQueue?.async { [ weak self ] in
+            self?.closeWriter()
+        }
+    }
     
     func queueSocketWrite(_ bytes: Data) {
         if Log.isLogging(.debug) {
