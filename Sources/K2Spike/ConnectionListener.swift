@@ -128,18 +128,21 @@ public class ConnectionListener: ParserConnecting {
         if !(self.readerSource?.isCancelled ?? true) {
             self.readerSource?.cancel()
         }
+/*
         if let writerSource = self.writerSource {
             if writerSource.isCancelled {
                 self.socket?.close()
                 self.readBuffer = nil
                 self.writeBuffer = nil
             }
-        } else {
+        } 
+	else {
             //No writer source, we're good to close
-            self.socket?.close()
+            //self.socket?.close()
             self.readBuffer = nil
             self.writeBuffer = nil
         }
+*/
     }
     
     public func process() {
