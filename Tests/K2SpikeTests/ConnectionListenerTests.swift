@@ -22,6 +22,7 @@ class ConnectionListenerTests: XCTestCase {
         ("testDontCleanUpIdleSocket", testDontCleanUpIdleSocket)
     ]
 
+    
     func testCleanUpIdleSocket() throws {
         let expectation = self.expectation(description: #function)
 
@@ -30,15 +31,15 @@ class ConnectionListenerTests: XCTestCase {
         try socket.listen(on: 0)
 
         DispatchQueue.global().async {
-            repeat {
+           // repeat {
                 do {
                     let newSocket = try socket.acceptClientConnection()
-                    let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldWebApp()]))
+                    let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldKeepAliveWebApp()]))
                     let parser = StreamingParser(webapp: coordinator.handle)
                     let connectionListener = ConnectionListener(socket: newSocket, parser: parser)
                     XCTAssert(connectionListener.socket?.isConnected ?? false)
 
-                    socket.close()
+                    //socket.close()
 
                     parser.done()
 
@@ -51,7 +52,7 @@ class ConnectionListenerTests: XCTestCase {
                 } catch {
                     XCTFail("\(error)")
                 }
-            } while socket.isListening
+            //} while socket.isListening
         }
 
         let session = URLSession(configuration: URLSessionConfiguration.default)
@@ -74,10 +75,10 @@ class ConnectionListenerTests: XCTestCase {
         try socket.listen(on: 0)
 
         DispatchQueue.global().async {
-            repeat {
+            //repeat {
                 do {
                     let newSocket = try socket.acceptClientConnection()
-                    let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldWebApp()]))
+                    let coordinator = RequestHandlingCoordinator.init(router: Router(map: [Path(path:"/helloworld", verb:.GET): HelloWorldKeepAliveWebApp()]))
                     let parser = StreamingParser(webapp: coordinator.handle)
                     let connectionListener = ConnectionListener(socket: newSocket, parser: parser)
                     XCTAssert(connectionListener.socket?.isConnected ?? false)
@@ -107,7 +108,7 @@ class ConnectionListenerTests: XCTestCase {
                 } catch {
                     XCTFail("\(error)")
                 }
-            } while socket.isListening
+           // } while socket.isListening
         }
 
         let session = URLSession(configuration: URLSessionConfiguration.default)
