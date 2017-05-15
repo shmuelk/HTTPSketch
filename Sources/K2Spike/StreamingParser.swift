@@ -197,6 +197,7 @@ public class StreamingParser: HTTPResponseWriter {
     
     func messageBegan() -> Int32 {
         processCurrentCallback(.messageBegan)
+        self.parserConnector?.responseBeginning()
         return 0
     }
     
@@ -415,17 +416,12 @@ public class StreamingParser: HTTPResponseWriter {
         self.headersWritten = false
         self.httpBodyProcessingCallback = nil
         
-        if clientRequestedKeepAlive {
-            keepAliveUntil = Date(timeIntervalSinceNow:StreamingParser.keepAliveTimeout).timeIntervalSinceReferenceDate
-        } else {
-            self.parserConnector?.queueSocketClose()
-        }
-        
         let closeAfter = {
             if self.clientRequestedKeepAlive {
                 self.keepAliveUntil = Date(timeIntervalSinceNow:StreamingParser.keepAliveTimeout).timeIntervalSinceReferenceDate
+                self.parserConnector?.responseComplete()
             } else {
-                self.parserConnector?.queueSocketClose()
+                self.parserConnector?.closeWriter()
             }
         }
         
@@ -449,5 +445,7 @@ public class StreamingParser: HTTPResponseWriter {
 
 protocol ParserConnecting: class {
     func queueSocketWrite(_ from: Data) -> Void
-    func queueSocketClose() -> Void
+    func closeWriter() -> Void
+    func responseBeginning() -> Void
+    func responseComplete() -> Void
 }
