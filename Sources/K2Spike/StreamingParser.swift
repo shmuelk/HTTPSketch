@@ -358,11 +358,6 @@ public class StreamingParser: HTTPResponseWriter {
     }
     
     public func writeBody(data: Data, completion: @escaping (Result<POSIXError, ()>) -> Void) {
-        if Log.isLogging(.debug) {
-            let bodyString=String(data:Data(data),encoding:.utf8) ?? "N/A"
-            Log.debug("\(#function) called with '\(bodyString)'")
-        }
-
         guard headersWritten else {
             //TODO error or default headers?
             return
@@ -385,10 +380,6 @@ public class StreamingParser: HTTPResponseWriter {
             dataToWrite = data
         }
         
-        if Log.isLogging(.debug) {
-            let bodyString2=String(data:Data(dataToWrite),encoding:.utf8) ?? "N/A"
-            Log.debug("\(#function) called with '\(bodyString2)'")
-        }
         self.parserConnector?.queueSocketWrite(dataToWrite)
         
         completion(Result(completion: ()))

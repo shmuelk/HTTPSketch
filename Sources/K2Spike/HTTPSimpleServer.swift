@@ -109,9 +109,6 @@ class ConnectionListenerCollection {
     }
     
     func prune() {
-        if Log.isLogging(.debug) {
-            print("pruning list")
-        }
         lock.wait()
         storage = storage.filter { nil != $0.value }.filter { $0.value?.isOpen ?? false}
         lock.signal()
