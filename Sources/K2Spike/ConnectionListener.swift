@@ -21,7 +21,7 @@ import Socket
 
 /// An HTTP server that listens for connections on a socket.
 public class ConnectionListener: ParserConnecting {
-    var socket: Socket
+    var socket: Socket?
     var parser: StreamingParser?
     
     var socketFD: Int32
@@ -99,9 +99,9 @@ public class ConnectionListener: ParserConnecting {
     
     private func closeIdleSocket() {
         if Log.isLogging(.debug) {
-            print("\(#function) called for socket \(self.socket.socketfd)/\(self.socketFD)(\(Thread.current))")
+            print("\(#function) called for socket \(self.socket?.socketfd ?? -1)/\(self.socketFD)(\(Thread.current))")
         }
-        if self.socket.socketfd < 0 {
+        if self.socket?.socketfd ?? -1 < 0 {
             //Already closed
             self.idleSocketTimer?.cancel()
             return
@@ -114,39 +114,44 @@ public class ConnectionListener: ParserConnecting {
     
     deinit {
         if Log.isLogging(.debug) {
-            print("\(#function) called for socket \(self.socket.socketfd)/\(self.socketFD)(\(Thread.current))")
+            print("\(#function) called for socket \(self.socket?.socketfd ?? -1)/\(self.socketFD)(\(Thread.current))")
         }
         cleanupIdleSocketTimer()
     }
     
     private func cleanupIdleSocketTimer() {
         if Log.isLogging(.debug) {
-            print("\(#function) called for socket \(self.socket.socketfd)/\(self.socketFD)(\(Thread.current))")
+            print("\(#function) called for socket \(self.socket?.socketfd ?? -1)/\(self.socketFD)(\(Thread.current))")
         }
         idleSocketTimer?.cancel()
         idleSocketTimer = nil
     }
     
     public var isOpen: Bool {
+        guard let socket = self.socket else {
+            return false
+        }
         return (socket.isActive || socket.isConnected)
     }
     
     func close() {
         if Log.isLogging(.debug) {
-            print("\(#function) called for socket \(self.socket.socketfd)/\(self.socketFD)(\(Thread.current))")
+            print("\(#function) called for socket \(self.socket?.socketfd ?? -1)/\(self.socketFD)(\(Thread.current))")
         }
         if !self.responseCompleted && !self.errorOccurred {
             if Log.isLogging(.debug) {
-            print("Response incomplete in \(#function) for socket \(self.socket.socketfd)/\(self.socketFD)(\(Thread.current))")
+            print("Response incomplete in \(#function) for socket \(self.socket?.socketfd ?? -1)/\(self.socketFD)(\(Thread.current))")
             }
             return
         }
         if Log.isLogging(.debug) {
-            print("Closing socket \(#function) for FD \(self.socket.socketfd)/\(self.socketFD)(\(Thread.current))")
+            print("Closing socket \(#function) for FD \(self.socket?.socketfd ?? -1)/\(self.socketFD)(\(Thread.current))")
         }
         self.readerSource?.cancel()
+        self.readerSource = nil
         self.idleSocketTimer?.cancel()
-        self.socket.close()
+        self.socket?.close()
+        self.socket = nil
         self.parser?.parserConnector = nil //allows for memory to be reclaimed
         self.parser = nil
         self.idleSocketTimer = nil
@@ -155,7 +160,7 @@ public class ConnectionListener: ParserConnecting {
     
     func closeWriter() {
         if Log.isLogging(.debug) {
-            print("\(#function) called for socket \(self.socket.socketfd)/\(self.socketFD)(\(Thread.current))")
+            print("\(#function) called for socket \(self.socket?.socketfd ?? -1)/\(self.socketFD)(\(Thread.current))")
         }
         self.socketWriterQueue.async { [weak self] in
             if (self?.readerSource?.isCancelled ?? true) {
@@ -166,11 +171,11 @@ public class ConnectionListener: ParserConnecting {
     
     public func responseBeginning() {
         if Log.isLogging(.debug) {
-            print("\(#function) called for socket \(self.socket.socketfd)/\(self.socketFD)(\(Thread.current))")
+            print("\(#function) called for socket \(self.socket?.socketfd ?? -1)/\(self.socketFD)(\(Thread.current))")
         }
         self.socketWriterQueue.async { [weak self] in
             if Log.isLogging(.debug) {
-                print("\(#function) run from queue for socket \(self?.socket.socketfd ?? -1)/\(self?.socketFD ?? -1)(\(Thread.current))")
+                print("\(#function) run from queue for socket \(self?.socket?.socketfd ?? -1)/\(self?.socketFD ?? -1)(\(Thread.current))")
             }
             self?.responseCompleted = false
         }
@@ -178,11 +183,11 @@ public class ConnectionListener: ParserConnecting {
     
     public func responseComplete() {
         if Log.isLogging(.debug) {
-            print("\(#function) called for socket \(self.socket.socketfd)/\(self.socketFD)(\(Thread.current))")
+            print("\(#function) called for socket \(self.socket?.socketfd ?? -1)/\(self.socketFD)(\(Thread.current))")
         }
         self.socketWriterQueue.async { [weak self] in
             if Log.isLogging(.debug) {
-                print("\(#function) run from queue for socket \(self?.socket.socketfd ?? -1)/\(self?.socketFD ?? -1)(\(Thread.current))")
+                print("\(#function) run from queue for socket \(self?.socket?.socketfd ?? -1)/\(self?.socketFD ?? -1)(\(Thread.current))")
             }
             self?.responseCompleted = true
             if (self?.readerSource?.isCancelled ?? true) {
@@ -194,24 +199,24 @@ public class ConnectionListener: ParserConnecting {
     public func process() {
         do {
             if Log.isLogging(.debug) {
-                print("process called for socket \(socket.socketfd)/\(self.socketFD)(\(Thread.current))")
+                print("process called for socket \(socket?.socketfd ?? -1)/\(self.socketFD)(\(Thread.current))")
             }
             
-            try! socket.setBlocking(mode: true)
+            try! socket?.setBlocking(mode: true)
             
-            let readerSource = DispatchSource.makeReadSource(fileDescriptor: socket.socketfd,
+            let readerSource = DispatchSource.makeReadSource(fileDescriptor: socket?.socketfd ?? -1,
                                                              queue: socketReaderQueue)
             
             readerSource.setEventHandler { [weak self] in
                 
                 if Log.isLogging(.debug) {
-                    print("ReaderSource Event Handler \(self?.socket.socketfd ?? -1)/\(self?.socketFD ?? -1) (\(Thread.current)) called with data \(readerSource.data)")
+                    print("ReaderSource Event Handler \(self?.socket?.socketfd ?? -1)/\(self?.socketFD ?? -1) (\(Thread.current)) called with data \(readerSource.data)")
                 }
                 
                 guard let strongSelf = self else {
                     return
                 }
-                guard strongSelf.socket.socketfd > 0 else {
+                guard strongSelf.socket?.socketfd ?? -1 > 0 else {
                     readerSource.cancel()
                     return
                 }
@@ -220,7 +225,7 @@ public class ConnectionListener: ParserConnecting {
                 do {
                     repeat {
                         let readBuffer:NSMutableData = NSMutableData()
-                        length = try strongSelf.socket.read(into: readBuffer)
+                        length = try strongSelf.socket?.read(into: readBuffer) ?? -1
                         if length > 0 {
                             self?.responseCompleted = false
                         }
@@ -241,15 +246,23 @@ public class ConnectionListener: ParserConnecting {
                 }
                 if (length == 0) {
                     if Log.isLogging(.debug) {
-                        print("Read 0 - closing socket \(self?.socket.socketfd ?? -1)/\(self?.socketFD ?? -1) (\(Thread.current))")
+                        print("Read 0 - closing socket \(self?.socket?.socketfd ?? -1)/\(self?.socketFD ?? -1) (\(Thread.current))")
                     }
                     readerSource.cancel()
+                }
+                if (length < 0) {
+                    if Log.isLogging(.debug) {
+                        print("Read < 0 - closing socket \(self?.socket?.socketfd ?? -1)/\(self?.socketFD ?? -1) (\(Thread.current))")
+                    }
+                    self?.errorOccurred = true
+                    readerSource.cancel()
+                    self?.close()
                 }
             }
             
             readerSource.setCancelHandler { [ weak self] in
                 if Log.isLogging(.debug) {
-                    print("ReaderSource Cancel Handler  \(self?.socket.socketfd ?? -1)/\(self?.socketFD ?? -1)\(Thread.current) called")
+                    print("ReaderSource Cancel Handler  \(self?.socket?.socketfd ?? -1)/\(self?.socketFD ?? -1)\(Thread.current) called")
                 }
                 self?.close() //close if we can
             }
@@ -261,7 +274,7 @@ public class ConnectionListener: ParserConnecting {
     
     func queueSocketWrite(_ bytes: Data) {
         if Log.isLogging(.debug) {
-            print("\(#function) called on FD \(self.socket.socketfd)/\(self.socketFD) (\(Thread.current)) with data \(bytes)")
+            print("\(#function) called on FD \(self.socket?.socketfd ?? -1)/\(self.socketFD) (\(Thread.current)) with data \(bytes)")
         }
         if Log.isLogging(.debug) {
             let byteStringToPrint = String(data:bytes, encoding:.utf8)
@@ -278,7 +291,7 @@ public class ConnectionListener: ParserConnecting {
     
     public func write(_ data:Data) {
         if Log.isLogging(.debug) {
-            print("\(#function) called on FD \(self.socket.socketfd)/\(self.socketFD) (\(Thread.current)) with data \(data)")
+            print("\(#function) called on FD \(self.socket?.socketfd ?? -1)/\(self.socketFD) (\(Thread.current)) with data \(data)")
         }
         
         do {
@@ -288,12 +301,12 @@ public class ConnectionListener: ParserConnecting {
             while written < data.count && !errorOccurred {
                 try data.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
                     if Log.isLogging(.debug) {
-                        print("socket.write starting on FD \(socket.socketfd)/\(socketFD) (\(Thread.current)) with data \(data)")
+                        print("socket.write starting on FD \(socket?.socketfd ?? -1)/\(socketFD) (\(Thread.current)) with data \(data)")
                     }
-                    let result = try socket.write(from: ptr + offset, bufSize:
-                        data.count - offset)
+                    let result = try socket?.write(from: ptr + offset, bufSize:
+                        data.count - offset) ?? -1
                     if Log.isLogging(.debug) {
-                        print("strongSelf.socket.write completed on FD \(socket.socketfd)/\(socketFD) (\(Thread.current)) with data \(data)")
+                        print("strongSelf.socket.write completed on FD \(socket?.socketfd ?? -1)/\(socketFD) (\(Thread.current)) with data \(data)")
                     }
                     if (result < 0) {
                         print("Recived broken write socket indication")
