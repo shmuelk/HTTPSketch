@@ -51,7 +51,26 @@ public class ConnectionListener: ParserConnecting {
             _responseCompleted = newValue
         }
     }
-        
+    
+    private let _errorOccurredLock = DispatchSemaphore(value: 1)
+    private var _errorOccurred: Bool = false
+    var errorOccurred: Bool {
+        get {
+            _errorOccurredLock.wait()
+            defer {
+                _errorOccurredLock.signal()
+            }
+            return _errorOccurred
+        }
+        set {
+            _errorOccurredLock.wait()
+            defer {
+                _errorOccurredLock.signal()
+            }
+            _errorOccurred = newValue
+        }
+    }
+    
     // Timer that cleans up idle sockets on expire
     private var idleSocketTimer: DispatchSourceTimer?
     
@@ -116,7 +135,7 @@ public class ConnectionListener: ParserConnecting {
         if Log.isLogging(.debug) {
             print("\(#function) called for socket \(self.socket.socketfd)/\(self.socketFD)(\(Thread.current))")
         }
-        if !self.responseCompleted {
+        if !self.responseCompleted && !self.errorOccurred {
             if Log.isLogging(.debug) {
             print("Response incomplete in \(#function) for socket \(self.socket.socketfd)/\(self.socketFD)(\(Thread.current))")
             }
@@ -215,7 +234,10 @@ public class ConnectionListener: ParserConnecting {
                         
                     } while length > 0
                 } catch {
-                    print("Error: \(error)")
+                    print("ReaderSource Event Error: \(error)")
+                    readerSource.cancel()
+                    self?.errorOccurred = true
+                    self?.close()
                 }
                 if (length == 0) {
                     if Log.isLogging(.debug) {
@@ -260,11 +282,10 @@ public class ConnectionListener: ParserConnecting {
         }
         
         do {
-            var errorResult = false
             var written: Int = 0
             var offset = 0
             
-            while written < data.count && !errorResult {
+            while written < data.count && !errorOccurred {
                 try data.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) in
                     if Log.isLogging(.debug) {
                         print("socket.write starting on FD \(socket.socketfd)/\(socketFD) (\(Thread.current)) with data \(data)")
@@ -276,19 +297,20 @@ public class ConnectionListener: ParserConnecting {
                     }
                     if (result < 0) {
                         print("Recived broken write socket indication")
-                        errorResult = true
+                        errorOccurred = true
                     } else {
                         written += result
                     }
                 }
                 offset = data.count - written
             }
-            if (errorResult) {
+            if (errorOccurred) {
                 close()
                 return
             }
         } catch {
-            print("Error: \(error)")
+            print("Writing Error: \(error)")
+            errorOccurred = true
             close()
         }
     }
