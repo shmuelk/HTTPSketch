@@ -55,7 +55,7 @@ public class StreamingParser: HTTPResponseWriter {
     var parsedHeaders = HTTPHeaders()
     var parsedHTTPMethod: HTTPMethod?
     var parsedHTTPVersion: HTTPVersion?
-    var parsedURL: URL?
+    var parsedURL: String?
     var dummyString: String?
 
 
@@ -162,7 +162,7 @@ public class StreamingParser: HTTPResponseWriter {
             self.parsedHTTPVersion = (Int(self.httpParser.http_major), Int(self.httpParser.http_minor))
             
             self.parserBuffer=nil
-            let request = HTTPRequest(method: self.parsedHTTPMethod!, target:self.parsedURL!.path, httpVersion: self.parsedHTTPVersion!, headers: self.parsedHeaders)
+            let request = HTTPRequest(method: self.parsedHTTPMethod!, target:self.parsedURL!, httpVersion: self.parsedHTTPVersion!, headers: self.parsedHeaders)
             
             self.httpBodyProcessingCallback = self.webapp(request, self)
         case .urlReceived:
@@ -172,9 +172,7 @@ public class StreamingParser: HTTPResponseWriter {
                     let dummyData = Data(bytes: ptr, count: 1)
                     self.dummyString = String(data:dummyData, encoding: .utf8)
                 }
-                if let urlString = String(data:parserBuffer, encoding: .utf8) {
-                    self.parsedURL = URL(string: urlString)
-                }
+                self.parsedURL = String(data:parserBuffer, encoding: .utf8)
                 self.parserBuffer=nil
             } else {
                 print("Missing parserBuffer after \(lastCallBack)")
