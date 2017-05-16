@@ -1,6 +1,6 @@
 //
 //  HTTPCommon.swift
-//  K2Spike
+//  HTTPSketch
 //
 //  Created by Carl Brown on 4/24/17.
 //
@@ -12,8 +12,8 @@ public typealias HTTPVersion = (Int, Int)
 
 public typealias WebApp = (HTTPRequest, HTTPResponseWriter) -> HTTPBodyProcessing
 
-public protocol ResponseCreating: class {
-    func serve(req: HTTPRequest, context: RequestContext, res: HTTPResponseWriter ) -> HTTPBodyProcessing
+public protocol WebAppContaining: class {
+    func serve(req: HTTPRequest, res: HTTPResponseWriter ) -> HTTPBodyProcessing
 }
 
 public struct HTTPHeaders {
@@ -86,29 +86,5 @@ public enum Result<POSIXError, Void> {
     /// Constructs a failure wrapping an `POSIXError`.
     public init(error: POSIXError) {
         self = .failure(error)
-    }
-}
-
-public protocol RequestStructParser {
-    associatedtype T: Any
-    func createStruct(path:String, queryParams:String?, Body:Data?) -> T?
-}
-
-public struct RequestContext {
-    let storage: [String: Any]
-    init(dict:[String:Any]) {
-        storage = dict
-    }
-    
-    public subscript(key: String) -> Any? {
-        get {
-            return storage[key]
-        }
-    }
-    
-    public func adding(dict:[String:Any]) -> RequestContext {
-        var newstorage = storage
-        dict.forEach{ newstorage[$0] = $1 }
-        return RequestContext(dict: newstorage)
     }
 }

@@ -1,6 +1,6 @@
 //
 //  HTTPSimpleServer.swift
-//  K2Spike
+//  HTTPSketch
 //
 //  Created by Carl Brown on 5/2/17.
 //
@@ -9,7 +9,6 @@
 import Dispatch
 import Foundation
 
-import LoggerAPI
 import Socket
 
 //import HeliumLogger
@@ -38,12 +37,10 @@ public class HTTPSimpleServer {
         #if os(Linux)
             Signals.trap(signal: .pipe) {
                 _ in
-                Log.info("Receiver closed socket, SIGPIPE ignored")
+                print("Receiver closed socket, SIGPIPE ignored")
             }
         #endif
-        
-        //HeliumLogger.use(.debug)
-        
+                
         serverSocket = try! Socket.create()
         pruneSocketTimer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "pruneSocketTimer"))
     }
@@ -68,7 +65,7 @@ public class HTTPSimpleServer {
                     self.connectionListenerList.add(connectionListener)
                 
                 } catch let error {
-                    Log.error("Error accepting client connection: \(error)")
+                    print("Error accepting client connection: \(error)")
                 }
             } while self.serverSocket.isListening
         }

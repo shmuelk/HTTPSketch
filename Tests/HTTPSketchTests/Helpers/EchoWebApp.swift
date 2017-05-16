@@ -1,8 +1,8 @@
 import Foundation
-import K2Spike
+import HTTPSketch
 
-class EchoWebApp: ResponseCreating {
-    func serve(req: HTTPRequest, context: RequestContext, res: HTTPResponseWriter ) -> HTTPBodyProcessing {
+class EchoWebApp: WebAppContaining {
+    func serve(req: HTTPRequest, res: HTTPResponseWriter ) -> HTTPBodyProcessing {
         //Assume the router gave us the right request - at least for now
         res.writeResponse(HTTPResponse(httpVersion: req.httpVersion,
                                        status: .ok,

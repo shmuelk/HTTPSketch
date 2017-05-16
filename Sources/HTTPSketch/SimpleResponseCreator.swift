@@ -1,24 +1,24 @@
 //
 //  SimpleResponseCreator.swift
-//  K2Spike
+//  HTTPSketch
 //
 //  Created by Carl Brown on 5/1/17.
 //
 //
 
 import Foundation
-public class SimpleResponseCreator: ResponseCreating {
+public class SimpleResponseCreator: WebAppContaining {
     
-    typealias SimpleHandlerBlock = (_ req: HTTPRequest, _ context: RequestContext, _ body: Data) -> (reponse: HTTPResponse, responseBody: Data)
+    typealias SimpleHandlerBlock = (_ req: HTTPRequest, _ body: Data) -> (reponse: HTTPResponse, responseBody: Data)
     let completionHandler: SimpleHandlerBlock
     
-    public init(completionHandler:@escaping (_ req: HTTPRequest, _ context: RequestContext, _ body: Data) -> (reponse: HTTPResponse, responseBody: Data)) {
+    public init(completionHandler:@escaping (_ req: HTTPRequest, _ body: Data) -> (reponse: HTTPResponse, responseBody: Data)) {
         self.completionHandler = completionHandler
     }
     
     var buffer = Data()
     
-    public func serve(req: HTTPRequest, context: RequestContext, res: HTTPResponseWriter ) -> HTTPBodyProcessing {
+    public func serve(req: HTTPRequest, res: HTTPResponseWriter ) -> HTTPBodyProcessing {
         return .processBody { (chunk, stop) in
             switch chunk {
             case .chunk(let data, let finishedProcessing):
@@ -27,7 +27,7 @@ public class SimpleResponseCreator: ResponseCreating {
                 }
                 finishedProcessing()
             case .end:
-                let (response, body) = self.completionHandler(req, context, self.buffer)
+                let (response, body) = self.completionHandler(req, self.buffer)
                 res.writeResponse(HTTPResponse(httpVersion: response.httpVersion,
                 status: response.status,
                 transferEncoding: .chunked,

@@ -1,6 +1,6 @@
 //
 //  TestResponseResolver.swift
-//  K2Spike
+//  HTTPSketch
 //
 //  Created by Carl Brown on 4/24/17.
 //
@@ -8,7 +8,7 @@
 
 import Foundation
 import Dispatch
-import K2Spike
+import HTTPSketch
 
 class TestResponseResolver: HTTPResponseWriter {
     let request: HTTPRequest

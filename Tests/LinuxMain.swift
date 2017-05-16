@@ -1,7 +1,6 @@
 import XCTest
-@testable import K2SpikeTests
+@testable import HTTPSketchTests
 
 XCTMain([
-    testCase(K2SpikeTests.allTests),
-    testCase(RouterTests.allTests),
+    testCase(HTTPSketchTests.allTests),
 ])

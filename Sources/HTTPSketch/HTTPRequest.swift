@@ -1,6 +1,6 @@
 //
 //  HTTPRequest.swift
-//  K2Spike
+//  HTTPSketch
 //
 //  Created by Carl Brown on 4/24/17.
 //

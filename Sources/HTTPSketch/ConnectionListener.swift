@@ -1,6 +1,6 @@
 //
 //  ConnectionListener.swift
-//  K2Spike
+//  HTTPSketch
 //
 //  Created by Carl Brown on 5/2/17.
 //

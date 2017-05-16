@@ -1,6 +1,6 @@
 //
 //  StreamingParser.swift
-//  K2Spike
+//  HTTPSketch
 //
 //  Created by Carl Brown on 5/4/17.
 //
@@ -8,8 +8,6 @@
 
 import Foundation
 import Dispatch
-
-import LoggerAPI
 
 import CHttpParser
 
@@ -137,8 +135,6 @@ public class StreamingParser: HTTPResponseWriter {
     
     @discardableResult
     func processCurrentCallback(_ currentCallBack:CallbackRecord) -> Bool {
-        Log.verbose("\(#function) called from \(lastCallBack) to \(currentCallBack)")
-
         if lastCallBack == currentCallBack {
             return false
         }
@@ -148,7 +144,7 @@ public class StreamingParser: HTTPResponseWriter {
                 self.lastHeaderName = String(data: parserBuffer, encoding: .utf8)
                 self.parserBuffer=nil
             } else {
-                Log.error("Missing parserBuffer after \(lastCallBack)")
+                print("Missing parserBuffer after \(lastCallBack)")
             }
         case .headerValueReceived:
             if let parserBuffer = self.parserBuffer, let lastHeaderName = self.lastHeaderName, let headerValue = String(data:parserBuffer, encoding: .utf8) {
@@ -156,7 +152,7 @@ public class StreamingParser: HTTPResponseWriter {
                 self.lastHeaderName = nil
                 self.parserBuffer=nil
             } else {
-                Log.error("Missing parserBuffer after \(lastCallBack)")
+                print("Missing parserBuffer after \(lastCallBack)")
             }
         case .headersCompleted:
             let methodId = self.httpParser.method
@@ -181,7 +177,7 @@ public class StreamingParser: HTTPResponseWriter {
                 }
                 self.parserBuffer=nil
             } else {
-                Log.error("Missing parserBuffer after \(lastCallBack)")
+                print("Missing parserBuffer after \(lastCallBack)")
             }
         case .idle:
             break
@@ -203,8 +199,6 @@ public class StreamingParser: HTTPResponseWriter {
     }
     
     func messageCompleted() -> Int32 {
-        Log.debug("\(#function) called")
-        
         let didChangeState = processCurrentCallback(.messageCompleted)
         if let chunkHandler = self.httpBodyProcessingCallback, didChangeState {
             var stop=false
@@ -245,7 +239,6 @@ public class StreamingParser: HTTPResponseWriter {
     }
     
     func bodyReceived(data: UnsafePointer<Int8>?, length: Int) -> Int32 {
-        Log.info("\(#function) called")
         processCurrentCallback(.bodyReceived)
         guard let data = data else { return 0 }
         data.withMemoryRebound(to: UInt8.self, capacity: length) { (ptr) -> Void in
@@ -331,8 +324,6 @@ public class StreamingParser: HTTPResponseWriter {
             }
         headers.append("\r\n")
         
-        Log.debug("\(#function) about to write '\(headers)'")
-
         // TODO use requested encoding if specified
         if let data = headers.data(using: .utf8) {
             self.parserConnector?.queueSocketWrite(data)
