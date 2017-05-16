@@ -11,13 +11,20 @@ import Dispatch
 
 import CHttpParser
 
+
+/// Class that wraps the CHTTPParser and calls the `WebApp` to get the response
 public class StreamingParser: HTTPResponseWriter {
 
     let webapp : WebApp
     
+    /// Time to leave socket open waiting for next request to start
     static let keepAliveTimeout: TimeInterval = 5
+    
+    /// Flag to track if the client wants to send multiple requests on the same TCP connection
     var clientRequestedKeepAlive = false
     
+    
+    /// Tracks when socket should be closed. Needs to have a lock, since it's updated often
     private let _keepAliveUntilLock = DispatchSemaphore(value: 1)
     private var _keepAliveUntil: TimeInterval?
     var keepAliveUntil: TimeInterval? {
@@ -37,17 +44,22 @@ public class StreamingParser: HTTPResponseWriter {
         }
     }
 
+    //FIXME: we should actually enforce the number of requests
+    /// Theoretical limit of how many open requests we can have. Currently unenforced
     let maxRequests = 100
 
+    /// Holds the bytes that come from the CHTTPParser until we have enough of them to do something with it
     var parserBuffer: Data?
 
     ///HTTP Parser
     var httpParser = http_parser()
     var httpParserSettings = http_parser_settings()
     
+    /// Block that takes a chunk from the HTTPParser as input and writes to a Response as a result
     var httpBodyProcessingCallback: HTTPBodyProcessing?
     
     //Note: we want this to be strong so it holds onto the connector until it's explicitly cleared
+    /// Protocol that we use to send data (and status info) back to the Network layer
     var parserConnector: ParserConnecting?
     
     var lastCallBack = CallbackRecord.idle
@@ -59,9 +71,13 @@ public class StreamingParser: HTTPResponseWriter {
     var dummyString: String?
 
 
+    /// Class that wraps the CHTTPParser and calls the `WebApp` to get the response
+    ///
+    /// - Parameter webapp: function that is used to create the response
     public init(webapp: @escaping WebApp) {
         self.webapp = webapp
         
+        //Set up all the callbacks for the CHTTPParser library
         httpParserSettings.on_message_begin = {
             parser -> Int32 in
             guard let listener = StreamingParser.getSelf(parser: parser) else {
@@ -123,16 +139,25 @@ public class StreamingParser: HTTPResponseWriter {
         
     }
     
+    /// Read a stream from the network, pass it to the parser and return number of bytes consumed
+    ///
+    /// - Parameter data: data coming from network
+    /// - Returns: number of bytes that we sent to the parser
     public func readStream(data:Data) -> Int {
         return data.withUnsafeBytes { (ptr) -> Int in
             return http_parser_execute(&self.httpParser, &self.httpParserSettings, ptr, data.count)
         }
     }
     
+    /// States to track where we are in parsing the HTTP Stream from the client
     enum CallbackRecord {
         case idle, messageBegan, messageCompleted, headersCompleted, headerFieldReceived, headerValueReceived, bodyReceived, urlReceived
     }
     
+    /// Process change of state as we get more and more parser callbacks
+    ///
+    /// - Parameter currentCallBack: state we are entering, as specified by the CHTTPParser
+    /// - Returns: Whether or not the state actually changed
     @discardableResult
     func processCurrentCallback(_ currentCallBack:CallbackRecord) -> Bool {
         if lastCallBack == currentCallBack {
@@ -424,6 +449,7 @@ public class StreamingParser: HTTPResponseWriter {
 
 }
 
+/// Protocol implemented by the thing that sits in between us and the network layer
 protocol ParserConnecting: class {
     func queueSocketWrite(_ from: Data) -> Void
     func closeWriter() -> Void

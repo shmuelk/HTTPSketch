@@ -2,7 +2,8 @@
 //  HTTPCommon.swift
 //  HTTPSketch
 //
-//  Created by Carl Brown on 4/24/17.
+//  Created by Carl Brown on 4/24/17 based on 
+//    https://lists.swift.org/pipermail/swift-server-dev/Week-of-Mon-20170403/000422.html
 //
 //
 
@@ -43,7 +44,7 @@ public struct HTTPHeaders {
         return original.makeIterator()
     }
     
-    //FIXME: Clean this up
+    //FIXME: Clean this up - this should be a lot more efficient
     public mutating func append(newHeader: (String, String)) {
         original.append(newHeader)
         storage = [String:[String]]()

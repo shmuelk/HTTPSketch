@@ -1,6 +1,8 @@
 import Foundation
 import HTTPSketch
 
+
+/// Simple `WebApp` that echos back whatever input it gets
 class EchoWebApp: WebAppContaining {
     func serve(req: HTTPRequest, res: HTTPResponseWriter ) -> HTTPBodyProcessing {
         //Assume the router gave us the right request - at least for now

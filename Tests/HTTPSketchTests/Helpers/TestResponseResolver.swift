@@ -10,6 +10,7 @@ import Foundation
 import Dispatch
 import HTTPSketch
 
+/// Acts as a fake/mock `HTTPServer` so we can write XCTests without having to worry about Sockets and such
 class TestResponseResolver: HTTPResponseWriter {
     let request: HTTPRequest
     let requestBody: DispatchData

@@ -15,17 +15,26 @@ import Socket
     import Dispatch
 #endif
 
+
+/// The Interface between the StreamingParser class and IBM's BlueSocket wrapper around socket(2).
+/// You hopefully should be able to replace this with any network library/engine.
 public class ConnectionListener: ParserConnecting {
     var socket: Socket?
+    
+    ///ivar for the thing that manages the CHTTP Parser
     var parser: StreamingParser?
     
+    ///Save the socket file descriptor so we can loook at it for debugging purposes
     var socketFD: Int32
     
+    /// Queues for managing access to the socket without blocking the world
     var socketReaderQueue: DispatchQueue
     var socketWriterQueue: DispatchQueue
     
+    ///Event handler for reading from the socket
     private var readerSource: DispatchSourceRead?
     
+    ///Flag to track whether we're in the middle of a response or not (with lock)
     private let _responseCompletedLock = DispatchSemaphore(value: 1)
     private var _responseCompleted: Bool = false
     var responseCompleted: Bool {
@@ -45,6 +54,7 @@ public class ConnectionListener: ParserConnecting {
         }
     }
     
+    ///Flag to track whether we've received a socket error or not (with lock)
     private let _errorOccurredLock = DispatchSemaphore(value: 1)
     private var _errorOccurred: Bool = false
     var errorOccurred: Bool {
@@ -63,7 +73,13 @@ public class ConnectionListener: ParserConnecting {
             _errorOccurred = newValue
         }
     }
-        
+    
+    
+    /// initializer
+    ///
+    /// - Parameters:
+    ///   - socket: Socket object from BlueSocket library wrapping a socket(2)
+    ///   - parser: Manager of the CHTTPParser library
     public init(socket: Socket, parser: StreamingParser) {
         self.socket = socket
         socketFD = socket.socketfd
@@ -74,6 +90,7 @@ public class ConnectionListener: ParserConnecting {
     }
     
     
+    /// Check if socket is still open. Used to decide whether it should be closed/pruned after timeout
     public var isOpen: Bool {
         guard let socket = self.socket else {
             return false
@@ -81,6 +98,8 @@ public class ConnectionListener: ParserConnecting {
         return (socket.isActive || socket.isConnected)
     }
     
+    
+    /// Close the socket and free up memory unless we're in the middle of a request
     func close() {
         if !self.responseCompleted && !self.errorOccurred {
             return
@@ -93,6 +112,8 @@ public class ConnectionListener: ParserConnecting {
         self.parser = nil
     }
     
+    
+    /// Called by the parser to let us know that it's done with this socket
     func closeWriter() {
         self.socketWriterQueue.async { [weak self] in
             if (self?.readerSource?.isCancelled ?? true) {
@@ -101,12 +122,16 @@ public class ConnectionListener: ParserConnecting {
         }
     }
     
+    
+    /// Called by the parser to let us know that a response has started being created
     public func responseBeginning() {
         self.socketWriterQueue.async { [weak self] in
             self?.responseCompleted = false
         }
     }
     
+    
+    /// Called by the parser to let us know that a response is complete, and we can close after timeout
     public func responseComplete() {
         self.socketWriterQueue.async { [weak self] in
             self?.responseCompleted = true
@@ -116,6 +141,8 @@ public class ConnectionListener: ParserConnecting {
         }
     }
     
+    
+    /// Starts reading from the socket and feeding that data to the parser
     public func process() {
         do {
             try! socket?.setBlocking(mode: true)
@@ -175,12 +202,20 @@ public class ConnectionListener: ParserConnecting {
         }
     }
     
+    
+    /// Called by the parser to give us data to send back out of the socket
+    ///
+    /// - Parameter bytes: Data object to be queued to be written to the socket
     func queueSocketWrite(_ bytes: Data) {
         self.socketWriterQueue.async { [ weak self ] in
             self?.write(bytes)
         }
     }
     
+    
+    /// Write data to a socket. Should be called in an `async` block on the `socketWriterQueue`
+    ///
+    /// - Parameter data: data to be written
     public func write(_ data:Data) {
         do {
             var written: Int = 0

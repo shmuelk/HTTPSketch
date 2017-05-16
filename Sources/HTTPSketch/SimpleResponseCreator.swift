@@ -7,6 +7,9 @@
 //
 
 import Foundation
+
+
+/// Simple block-based wrapper to create a `WebApp`. Normally used during XCTests
 public class SimpleResponseCreator: WebAppContaining {
     
     typealias SimpleHandlerBlock = (_ req: HTTPRequest, _ body: Data) -> (reponse: HTTPResponse, responseBody: Data)

@@ -2,7 +2,8 @@
 //  HTTPRequest.swift
 //  HTTPSketch
 //
-//  Created by Carl Brown on 4/24/17.
+//  Created by Carl Brown on 4/24/17 based on
+//    https://lists.swift.org/pipermail/swift-server-dev/Week-of-Mon-20170403/000422.html
 //
 //
 
