@@ -204,20 +204,20 @@ public class ConnectionListener: ParserConnecting {
             
             try! socket?.setBlocking(mode: true)
             
-            let readerSource = DispatchSource.makeReadSource(fileDescriptor: socket?.socketfd ?? -1,
+            let tempReaderSource = DispatchSource.makeReadSource(fileDescriptor: socket?.socketfd ?? -1,
                                                              queue: socketReaderQueue)
             
-            readerSource.setEventHandler { [weak self] in
+            tempReaderSource.setEventHandler { [weak self] in
                 
                 if Log.isLogging(.debug) {
-                    print("ReaderSource Event Handler \(self?.socket?.socketfd ?? -1)/\(self?.socketFD ?? -1) (\(Thread.current)) called with data \(readerSource.data)")
+                    print("ReaderSource Event Handler \(self?.socket?.socketfd ?? -1)/\(self?.socketFD ?? -1) (\(Thread.current)) called with data \(self?.readerSource?.data ?? 0)")
                 }
                 
                 guard let strongSelf = self else {
                     return
                 }
                 guard strongSelf.socket?.socketfd ?? -1 > 0 else {
-                    readerSource.cancel()
+                    self?.readerSource?.cancel()
                     return
                 }
                 
@@ -240,7 +240,7 @@ public class ConnectionListener: ParserConnecting {
                     } while length > 0
                 } catch {
                     print("ReaderSource Event Error: \(error)")
-                    readerSource.cancel()
+                    self?.readerSource?.cancel()
                     self?.errorOccurred = true
                     self?.close()
                 }
@@ -248,27 +248,27 @@ public class ConnectionListener: ParserConnecting {
                     if Log.isLogging(.debug) {
                         print("Read 0 - closing socket \(self?.socket?.socketfd ?? -1)/\(self?.socketFD ?? -1) (\(Thread.current))")
                     }
-                    readerSource.cancel()
+                    self?.readerSource?.cancel()
                 }
                 if (length < 0) {
                     if Log.isLogging(.debug) {
                         print("Read < 0 - closing socket \(self?.socket?.socketfd ?? -1)/\(self?.socketFD ?? -1) (\(Thread.current))")
                     }
                     self?.errorOccurred = true
-                    readerSource.cancel()
+                    self?.readerSource?.cancel()
                     self?.close()
                 }
             }
             
-            readerSource.setCancelHandler { [ weak self] in
+            tempReaderSource.setCancelHandler { [ weak self] in
                 if Log.isLogging(.debug) {
                     print("ReaderSource Cancel Handler  \(self?.socket?.socketfd ?? -1)/\(self?.socketFD ?? -1)\(Thread.current) called")
                 }
                 self?.close() //close if we can
             }
             
-            self.readerSource = readerSource
-            readerSource.resume()
+            self.readerSource = tempReaderSource
+            self.readerSource?.resume()
         }
     }
     
