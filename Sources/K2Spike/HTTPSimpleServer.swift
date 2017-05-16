@@ -61,7 +61,7 @@ public class HTTPSimpleServer {
                 do {
                     let clientSocket = try self.serverSocket.acceptClientConnection()
                     let streamingParser = StreamingParser(webapp: webapp)
-                    let connectionListener = ConnectionListener(socket:clientSocket, parser: streamingParser, pruner: self.connectionListenerList)
+                    let connectionListener = ConnectionListener(socket:clientSocket, parser: streamingParser)
                     DispatchQueue.global().async { [weak connectionListener] in
                         connectionListener?.process()
                     }
@@ -86,7 +86,7 @@ public class HTTPSimpleServer {
     
 }
 
-class ConnectionListenerCollection: Pruning {
+class ConnectionListenerCollection {
     class WeakConnectionListener<T: AnyObject> {
         weak var value : T?
         init (_ value: T) {
