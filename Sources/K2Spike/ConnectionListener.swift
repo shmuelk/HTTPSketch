@@ -239,7 +239,9 @@ public class ConnectionListener: ParserConnecting {
                         
                     } while length > 0
                 } catch {
-                    print("ReaderSource Event Error: \(error)")
+                    if Log.isLogging(.info) {
+                        print("ReaderSource Event Error: \(error)")
+                    }
                     self?.readerSource?.cancel()
                     self?.errorOccurred = true
                     self?.close()
@@ -322,7 +324,9 @@ public class ConnectionListener: ParserConnecting {
                 return
             }
         } catch {
-            print("Writing Error: \(error)")
+            if Log.isLogging(.info) {
+                print("Writing Error: \(error)")
+            }
             errorOccurred = true
             close()
         }

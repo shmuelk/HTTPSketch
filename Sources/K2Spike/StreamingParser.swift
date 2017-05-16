@@ -359,7 +359,7 @@ public class StreamingParser: HTTPResponseWriter {
     
     public func writeBody(data: Data, completion: @escaping (Result<POSIXError, ()>) -> Void) {
         if Log.isLogging(.debug) {
-            let bodyString=String(data:Data(data),encoding:.utf8)!
+            let bodyString=String(data:Data(data),encoding:.utf8) ?? "N/A"
             Log.debug("\(#function) called with '\(bodyString)'")
         }
 
@@ -386,7 +386,7 @@ public class StreamingParser: HTTPResponseWriter {
         }
         
         if Log.isLogging(.debug) {
-            let bodyString2=String(data:Data(dataToWrite),encoding:.utf8)!
+            let bodyString2=String(data:Data(dataToWrite),encoding:.utf8) ?? "N/A"
             Log.debug("\(#function) called with '\(bodyString2)'")
         }
         self.parserConnector?.queueSocketWrite(dataToWrite)
