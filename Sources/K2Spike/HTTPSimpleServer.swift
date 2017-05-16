@@ -12,6 +12,8 @@ import Foundation
 import LoggerAPI
 import Socket
 
+//import HeliumLogger
+
 #if os(Linux)
     import Signals
 #endif
@@ -40,10 +42,10 @@ public class HTTPSimpleServer {
             }
         #endif
         
+        //HeliumLogger.use(.debug)
+        
         serverSocket = try! Socket.create()
-        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "pruneSocketTimer"))
-        timer.scheduleRepeating(deadline: .now(), interval: .seconds(Int(StreamingParser.keepAliveTimeout)))
-        pruneSocketTimer = timer
+        pruneSocketTimer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "pruneSocketTimer"))
     }
     
     public func start(port: Int = 0, webapp: @escaping WebApp) throws {
@@ -51,6 +53,7 @@ public class HTTPSimpleServer {
         pruneSocketTimer.setEventHandler { [weak self] in
             self?.connectionListenerList.prune()
         }
+        pruneSocketTimer.scheduleRepeating(deadline: .now() + StreamingParser.keepAliveTimeout, interval: .seconds(Int(StreamingParser.keepAliveTimeout)))
         pruneSocketTimer.resume()
         
         DispatchQueue.global().async {
@@ -58,7 +61,7 @@ public class HTTPSimpleServer {
                 do {
                     let clientSocket = try self.serverSocket.acceptClientConnection()
                     let streamingParser = StreamingParser(webapp: webapp)
-                    let connectionListener = ConnectionListener(socket:clientSocket, parser: streamingParser)
+                    let connectionListener = ConnectionListener(socket:clientSocket, parser: streamingParser, pruner: self.connectionListenerList)
                     DispatchQueue.global().async { [weak connectionListener] in
                         connectionListener?.process()
                     }
@@ -83,29 +86,38 @@ public class HTTPSimpleServer {
     
 }
 
-class ConnectionListenerCollection {
-
+class ConnectionListenerCollection: Pruning {
+    class WeakConnectionListener<T: AnyObject> {
+        weak var value : T?
+        init (_ value: T) {
+            self.value = value
+        }
+    }
+    
     let lock = DispatchSemaphore(value: 1)
     
-    var storage = [ConnectionListener]()
+    var storage = [WeakConnectionListener<ConnectionListener>]()
     
     func add(_ listener:ConnectionListener) {
         lock.wait()
-        storage.append(listener)
+        storage.append(WeakConnectionListener(listener))
         lock.signal()
     }
     
     func closeAll() {
-        storage.forEach { $0.close() }
+        storage.filter { nil != $0.value }.forEach { $0.value?.close() }
     }
     
     func prune() {
+        if Log.isLogging(.debug) {
+            print("pruning list")
+        }
         lock.wait()
-        storage = storage.filter { $0.isOpen }
+        storage = storage.filter { nil != $0.value }.filter { $0.value?.isOpen ?? false}
         lock.signal()
     }
     
     var count: Int {
-        return storage.count
+        return storage.filter { nil != $0.value }.count
     }
 }

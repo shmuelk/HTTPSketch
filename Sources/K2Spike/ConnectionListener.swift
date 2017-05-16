@@ -31,6 +31,8 @@ public class ConnectionListener: ParserConnecting {
     
     private var readerSource: DispatchSourceRead?
     
+    private weak var pruner: Pruning?
+    
     private let _responseCompletedLock = DispatchSemaphore(value: 1)
     private var _responseCompleted: Bool = false
     var responseCompleted: Bool {
@@ -53,13 +55,15 @@ public class ConnectionListener: ParserConnecting {
     // Timer that cleans up idle sockets on expire
     private var idleSocketTimer: DispatchSourceTimer?
     
-    public init(socket: Socket, parser: StreamingParser) {
+    public init(socket: Socket, parser: StreamingParser, pruner:Pruning? = nil) {
         self.socket = socket
         socketFD = socket.socketfd
         socketReaderQueue = DispatchQueue(label: "Socket Reader \(socket.remotePort)")
         socketWriterQueue = DispatchQueue(label: "Socket Writer \(socket.remotePort)")
         self.parser = parser
         parser.parserConnector = self
+        
+        self.pruner = pruner
         
         idleSocketTimer = makeIdleSocketTimer()
     }
@@ -90,6 +94,9 @@ public class ConnectionListener: ParserConnecting {
     }
     
     deinit {
+        if Log.isLogging(.debug) {
+            print("\(#function) called for socket \(self.socket.socketfd)/\(self.socketFD)(\(Thread.current))")
+        }
         cleanupIdleSocketTimer()
     }
     
@@ -121,9 +128,10 @@ public class ConnectionListener: ParserConnecting {
         self.readerSource?.cancel()
         self.idleSocketTimer?.cancel()
         self.socket.close()
-        self.parser?.parserConnector = nil
+        self.parser?.parserConnector = nil //allows for memory to be reclaimed
         self.parser = nil
         self.idleSocketTimer = nil
+        self.pruner?.prune()
     }
     
     func closeWriter() {
@@ -285,4 +293,8 @@ public class ConnectionListener: ParserConnecting {
         }
     }
     
+}
+
+public protocol Pruning: class {
+    func prune() -> ()
 }

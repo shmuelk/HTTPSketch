@@ -49,7 +49,8 @@ public class StreamingParser: HTTPResponseWriter {
     
     var httpBodyProcessingCallback: HTTPBodyProcessing?
     
-    weak var parserConnector: ParserConnecting?
+    //Note: we want this to be strong so it holds onto the connector until it's explicitly cleared
+    var parserConnector: ParserConnecting?
     
     var lastCallBack = CallbackRecord.idle
     var lastHeaderName: String?
