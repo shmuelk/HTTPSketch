@@ -132,9 +132,10 @@ class ConnectionListenerCollection {
         storage.filter { nil != $0.value }.forEach { $0.value?.close() }
     }
     
-    /// Remove any weak pointers to closed (and freed) sockets from the collection
+    /// Close any idle sockets and remove any weak pointers to closed (and freed) sockets from the collection
     func prune() {
         lock.wait()
+        storage.filter { nil != $0.value }.forEach { $0.value?.closeIfIdleSocket() }
         storage = storage.filter { nil != $0.value }.filter { $0.value?.isOpen ?? false}
         lock.signal()
     }

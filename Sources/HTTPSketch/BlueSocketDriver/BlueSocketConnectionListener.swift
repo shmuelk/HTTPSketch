@@ -129,6 +129,15 @@ public class BlueSocketConnectionListener: ParserConnecting {
         }
     }
     
+    /// Check if the socket is idle, and if so, call close()
+    func closeIfIdleSocket() {
+        let now = Date().timeIntervalSinceReferenceDate
+        if let keepAliveUntil = parser?.keepAliveUntil, now >= keepAliveUntil {
+            print("Closing idle socket \(socketFD)")
+            close()
+        }
+    }
+    
     
     /// Called by the parser to let us know that a response has started being created
     public func responseBeginning() {
