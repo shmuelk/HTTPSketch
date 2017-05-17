@@ -1,5 +1,5 @@
 //
-//  ConnectionListener.swift
+//  BlueSocketConnectionListener.swift
 //  HTTPSketch
 //
 //  Created by Carl Brown on 5/2/17.
@@ -18,7 +18,7 @@ import Socket
 
 /// The Interface between the StreamingParser class and IBM's BlueSocket wrapper around socket(2).
 /// You hopefully should be able to replace this with any network library/engine.
-public class ConnectionListener: ParserConnecting {
+public class BlueSocketConnectionListener: ParserConnecting {
     var socket: Socket?
     
     ///ivar for the thing that manages the CHTTP Parser

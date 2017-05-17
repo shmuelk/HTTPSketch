@@ -1,5 +1,5 @@
 //
-//  HTTPSimpleServer.swift
+//  BlueSocketSimpleServer.swift
 //  HTTPSketch
 //
 //  Created by Carl Brown on 5/2/17.
@@ -21,7 +21,7 @@ import Socket
 // MARK: HTTPServer
 
 /// An HTTP server that listens for connections on a socket.
-public class HTTPSimpleServer {
+public class BlueSocketSimpleServer {
     
     
     /// Socket to listen on for connections
@@ -71,11 +71,11 @@ public class HTTPSimpleServer {
                 do {
                     let clientSocket = try self.serverSocket.acceptClientConnection()
                     let streamingParser = StreamingParser(webapp: webapp)
-                    let connectionListener = ConnectionListener(socket:clientSocket, parser: streamingParser)
-                    DispatchQueue.global().async { [weak connectionListener] in
-                        connectionListener?.process()
+                    let listener = BlueSocketConnectionListener(socket:clientSocket, parser: streamingParser)
+                    DispatchQueue.global().async { [weak listener] in
+                        listener?.process()
                     }
-                    self.connectionListenerList.add(connectionListener)
+                    self.connectionListenerList.add(listener)
                 
                 } catch let error {
                     print("Error accepting client connection: \(error)")
@@ -115,13 +115,13 @@ class ConnectionListenerCollection {
     let lock = DispatchSemaphore(value: 1)
     
     /// Storage for weak connection listeners
-    var storage = [WeakConnectionListener<ConnectionListener>]()
+    var storage = [WeakConnectionListener<BlueSocketConnectionListener>]()
     
     
     /// Add a new connection to the collection
     ///
     /// - Parameter listener: socket manager object
-    func add(_ listener:ConnectionListener) {
+    func add(_ listener:BlueSocketConnectionListener) {
         lock.wait()
         storage.append(WeakConnectionListener(listener))
         lock.signal()

@@ -54,7 +54,7 @@ class HTTPSketchTests: XCTestCase {
     func testHelloEndToEnd() {
         let receivedExpectation = self.expectation(description: "Received web response \(#function)")
         
-        let server = HTTPSimpleServer()
+        let server = BlueSocketSimpleServer()
         do {
             try server.start(port: 0, webapp: HelloWorldWebApp().serve)
             let session = URLSession(configuration: URLSessionConfiguration.default)
@@ -92,7 +92,7 @@ class HTTPSketchTests: XCTestCase {
             
         }
 
-        let server = HTTPSimpleServer()
+        let server = BlueSocketSimpleServer()
         do {
             try server.start(port: 0, webapp: simpleHelloWebApp.serve)
         } catch {
@@ -129,7 +129,7 @@ class HTTPSketchTests: XCTestCase {
         let receivedExpectation = self.expectation(description: "Received web response \(#function)")
         let testString="This is a test"
 
-        let server = HTTPSimpleServer()
+        let server = BlueSocketSimpleServer()
         do {
             try server.start(port: 0, webapp: EchoWebApp().serve)
             let session = URLSession(configuration: URLSessionConfiguration.default)
@@ -169,7 +169,7 @@ class HTTPSketchTests: XCTestCase {
         let testString2="This is a test, too"
         let testString3="This is also a test"
         
-        let server = HTTPSimpleServer()
+        let server = BlueSocketSimpleServer()
         do {
             try server.start(port: 0, webapp: EchoWebApp().serve)
             let session = URLSession(configuration: URLSessionConfiguration.default)
@@ -267,7 +267,7 @@ class HTTPSketchTests: XCTestCase {
         
         let testData = Data(testDataLong)
         
-        let server = HTTPSimpleServer()
+        let server = BlueSocketSimpleServer()
         do {
             try server.start(port: 0, webapp: EchoWebApp().serve)
             let session = URLSession(configuration: URLSessionConfiguration.default)
