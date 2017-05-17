@@ -28,8 +28,8 @@ public class ConnectionListener: ParserConnecting {
     var socketFD: Int32
     
     /// Queues for managing access to the socket without blocking the world
-    var socketReaderQueue: DispatchQueue
-    var socketWriterQueue: DispatchQueue
+    var socketReaderQueue: DispatchQueue?
+    var socketWriterQueue: DispatchQueue?
     
     ///Event handler for reading from the socket
     private var readerSource: DispatchSourceRead?
@@ -105,17 +105,22 @@ public class ConnectionListener: ParserConnecting {
             return
         }
         self.readerSource?.cancel()
-        self.readerSource = nil
         self.socket?.close()
+        
+        //In a perfect world, we wouldn't have to clean this all up explicitly,
+        // but KDE/heaptrack informs us we're in far from a perfect world
+        self.readerSource = nil
         self.socket = nil
         self.parser?.parserConnector = nil //allows for memory to be reclaimed
         self.parser = nil
+        self.socketReaderQueue = nil
+        self.socketWriterQueue = nil
     }
     
     
     /// Called by the parser to let us know that it's done with this socket
     func closeWriter() {
-        self.socketWriterQueue.async { [weak self] in
+        self.socketWriterQueue?.async { [weak self] in
             if (self?.readerSource?.isCancelled ?? true) {
                 self?.close()
             }
@@ -125,7 +130,7 @@ public class ConnectionListener: ParserConnecting {
     
     /// Called by the parser to let us know that a response has started being created
     public func responseBeginning() {
-        self.socketWriterQueue.async { [weak self] in
+        self.socketWriterQueue?.async { [weak self] in
             self?.responseCompleted = false
         }
     }
@@ -133,7 +138,7 @@ public class ConnectionListener: ParserConnecting {
     
     /// Called by the parser to let us know that a response is complete, and we can close after timeout
     public func responseComplete() {
-        self.socketWriterQueue.async { [weak self] in
+        self.socketWriterQueue?.async { [weak self] in
             self?.responseCompleted = true
             if (self?.readerSource?.isCancelled ?? true) {
                 self?.close()
@@ -207,7 +212,7 @@ public class ConnectionListener: ParserConnecting {
     ///
     /// - Parameter bytes: Data object to be queued to be written to the socket
     func queueSocketWrite(_ bytes: Data) {
-        self.socketWriterQueue.async { [ weak self ] in
+        self.socketWriterQueue?.async { [ weak self ] in
             self?.write(bytes)
         }
     }
