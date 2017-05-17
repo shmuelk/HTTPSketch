@@ -109,6 +109,8 @@ public class ConnectionListener: ParserConnecting {
         
         //In a perfect world, we wouldn't have to clean this all up explicitly,
         // but KDE/heaptrack informs us we're in far from a perfect world
+        self.readerSource?.setEventHandler(handler: nil)
+        self.readerSource?.setCancelHandler(handler: nil)
         self.readerSource = nil
         self.socket = nil
         self.parser?.parserConnector = nil //allows for memory to be reclaimed
