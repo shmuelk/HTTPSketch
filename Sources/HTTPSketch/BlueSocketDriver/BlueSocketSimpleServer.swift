@@ -66,7 +66,7 @@ public class BlueSocketSimpleServer {
         pruneSocketTimer.scheduleRepeating(deadline: .now() + StreamingParser.keepAliveTimeout, interval: .seconds(Int(StreamingParser.keepAliveTimeout)))
         pruneSocketTimer.resume()
         
-        let queueMax = 2
+        let queueMax = 4
         
         var readQueues = [DispatchQueue]()
         var writeQueues = [DispatchQueue]()
