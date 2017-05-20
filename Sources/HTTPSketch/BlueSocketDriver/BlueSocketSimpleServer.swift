@@ -66,10 +66,12 @@ public class BlueSocketSimpleServer {
         pruneSocketTimer.scheduleRepeating(deadline: .now() + StreamingParser.keepAliveTimeout, interval: .seconds(Int(StreamingParser.keepAliveTimeout)))
         pruneSocketTimer.resume()
         
-        let queueMax = 8
+        let queueMax = 2
         
         var readQueues = [DispatchQueue]()
         var writeQueues = [DispatchQueue]()
+        
+        let acceptQueue = DispatchQueue(label: "Queue for accepting sockets")
         
         for i in 0..<queueMax {
             readQueues.append(DispatchQueue(label: "Read Queue \(i)"))
@@ -84,7 +86,7 @@ public class BlueSocketSimpleServer {
                     let streamingParser = StreamingParser(webapp: webapp)
                     let listener = BlueSocketConnectionListener(socket:clientSocket, parser: streamingParser, readQueue:readQueues[listenerCount % queueMax], writeQueue: writeQueues[listenerCount % queueMax])
                     listenerCount += 1
-                    DispatchQueue.global().async { [weak listener] in
+                    acceptQueue.async { [weak listener] in
                         listener?.process()
                     }
                     self.connectionListenerList.add(listener)
