@@ -71,8 +71,6 @@ public class BlueSocketSimpleServer {
         var readQueues = [DispatchQueue]()
         var writeQueues = [DispatchQueue]()
         
-        let acceptQueue = DispatchQueue(label: "Queue for accepting sockets")
-        
         for i in 0..<queueMax {
             readQueues.append(DispatchQueue(label: "Read Queue \(i)"))
             writeQueues.append(DispatchQueue(label: "Write Queue \(i)"))
@@ -84,9 +82,11 @@ public class BlueSocketSimpleServer {
                 do {
                     let clientSocket = try self.serverSocket.acceptClientConnection()
                     let streamingParser = StreamingParser(webapp: webapp)
-                    let listener = BlueSocketConnectionListener(socket:clientSocket, parser: streamingParser, readQueue:readQueues[listenerCount % queueMax], writeQueue: writeQueues[listenerCount % queueMax])
+                    let readQueue = readQueues[listenerCount % queueMax]
+                    let writeQueue = writeQueues[listenerCount % queueMax]
+                    let listener = BlueSocketConnectionListener(socket:clientSocket, parser: streamingParser, readQueue:readQueue, writeQueue: writeQueue)
                     listenerCount += 1
-                    acceptQueue.async { [weak listener] in
+                    writeQueue.async { [weak listener] in
                         listener?.process()
                     }
                     self.connectionListenerList.add(listener)
