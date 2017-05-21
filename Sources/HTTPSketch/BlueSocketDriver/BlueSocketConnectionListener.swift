@@ -121,7 +121,7 @@ public class BlueSocketConnectionListener: ParserConnecting {
     
     
     /// Called by the parser to let us know that it's done with this socket
-    func closeWriter() {
+    public func closeWriter() {
         self.socketWriterQueue?.async { [weak self] in
             if (self?.readerSource?.isCancelled ?? true) {
                 self?.close()
@@ -213,7 +213,7 @@ public class BlueSocketConnectionListener: ParserConnecting {
     /// Called by the parser to give us data to send back out of the socket
     ///
     /// - Parameter bytes: Data object to be queued to be written to the socket
-    func queueSocketWrite(_ bytes: Data) {
+    public func queueSocketWrite(_ bytes: Data) {
         self.socketWriterQueue?.async { [ weak self ] in
             self?.write(bytes)
         }
