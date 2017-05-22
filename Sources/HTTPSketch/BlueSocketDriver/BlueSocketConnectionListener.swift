@@ -28,8 +28,8 @@ public class BlueSocketConnectionListener: ParserConnecting {
     var socketFD: Int32
     
     /// Queues for managing access to the socket without blocking the world
-    var socketReaderQueue: DispatchQueue?
-    var socketWriterQueue: DispatchQueue?
+    weak var socketReaderQueue: DispatchQueue?
+    weak var socketWriterQueue: DispatchQueue?
     
     ///Event handler for reading from the socket
     private var readerSource: DispatchSourceRead?
@@ -80,11 +80,11 @@ public class BlueSocketConnectionListener: ParserConnecting {
     /// - Parameters:
     ///   - socket: Socket object from BlueSocket library wrapping a socket(2)
     ///   - parser: Manager of the CHTTPParser library
-    public init(socket: Socket, parser: StreamingParser) {
+    public init(socket: Socket, parser: StreamingParser, readQueue: DispatchQueue, writeQueue: DispatchQueue) {
         self.socket = socket
         socketFD = socket.socketfd
-        socketReaderQueue = DispatchQueue(label: "Socket Reader \(socket.remotePort)")
-        socketWriterQueue = DispatchQueue(label: "Socket Writer \(socket.remotePort)")
+        socketReaderQueue = readQueue
+        socketWriterQueue = writeQueue
         self.parser = parser
         parser.parserConnector = self
     }
@@ -126,6 +126,15 @@ public class BlueSocketConnectionListener: ParserConnecting {
             if (self?.readerSource?.isCancelled ?? true) {
                 self?.close()
             }
+        }
+    }
+    
+    /// Check if the socket is idle, and if so, call close()
+    func closeIfIdleSocket() {
+        let now = Date().timeIntervalSinceReferenceDate
+        if let keepAliveUntil = parser?.keepAliveUntil, now >= keepAliveUntil {
+            print("Closing idle socket \(socketFD)")
+            close()
         }
     }
     

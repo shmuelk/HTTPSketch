@@ -68,7 +68,6 @@ public class StreamingParser: HTTPResponseWriter {
     var parsedHTTPMethod: HTTPMethod?
     var parsedHTTPVersion: HTTPVersion?
     var parsedURL: String?
-    var dummyString: String?
 
 
     /// Class that wraps the CHTTPParser and calls the `WebApp` to get the response
@@ -192,11 +191,8 @@ public class StreamingParser: HTTPResponseWriter {
             self.httpBodyProcessingCallback = self.webapp(request, self)
         case .urlReceived:
             if let parserBuffer = self.parserBuffer {
-                //Eat a byte
-                parserBuffer.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) -> Void in
-                    let dummyData = Data(bytes: ptr, count: 1)
-                    self.dummyString = String(data:dummyData, encoding: .utf8)
-                }
+                //Under heaptrack, this may appear to leak via _CFGetTSDCreateIfNeeded, 
+                //  apparently, that's because it triggers thread metadata to be created
                 self.parsedURL = String(data:parserBuffer, encoding: .utf8)
                 self.parserBuffer=nil
             } else {

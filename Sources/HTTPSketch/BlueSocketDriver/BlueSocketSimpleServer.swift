@@ -66,13 +66,27 @@ public class BlueSocketSimpleServer {
         pruneSocketTimer.scheduleRepeating(deadline: .now() + StreamingParser.keepAliveTimeout, interval: .seconds(Int(StreamingParser.keepAliveTimeout)))
         pruneSocketTimer.resume()
         
+        let queueMax = 4
+        
+        var readQueues = [DispatchQueue]()
+        var writeQueues = [DispatchQueue]()
+        
+        for i in 0..<queueMax {
+            readQueues.append(DispatchQueue(label: "Read Queue \(i)"))
+            writeQueues.append(DispatchQueue(label: "Write Queue \(i)"))
+        }
+        
+        var listenerCount = 0
         DispatchQueue.global().async {
             repeat {
                 do {
                     let clientSocket = try self.serverSocket.acceptClientConnection()
                     let streamingParser = StreamingParser(webapp: webapp)
-                    let listener = BlueSocketConnectionListener(socket:clientSocket, parser: streamingParser)
-                    DispatchQueue.global().async { [weak listener] in
+                    let readQueue = readQueues[listenerCount % queueMax]
+                    let writeQueue = writeQueues[listenerCount % queueMax]
+                    let listener = BlueSocketConnectionListener(socket:clientSocket, parser: streamingParser, readQueue:readQueue, writeQueue: writeQueue)
+                    listenerCount += 1
+                    writeQueue.async { [weak listener] in
                         listener?.process()
                     }
                     self.connectionListenerList.add(listener)
@@ -132,9 +146,10 @@ class ConnectionListenerCollection {
         storage.filter { nil != $0.value }.forEach { $0.value?.close() }
     }
     
-    /// Remove any weak pointers to closed (and freed) sockets from the collection
+    /// Close any idle sockets and remove any weak pointers to closed (and freed) sockets from the collection
     func prune() {
         lock.wait()
+        storage.filter { nil != $0.value }.forEach { $0.value?.closeIfIdleSocket() }
         storage = storage.filter { nil != $0.value }.filter { $0.value?.isOpen ?? false}
         lock.signal()
     }
