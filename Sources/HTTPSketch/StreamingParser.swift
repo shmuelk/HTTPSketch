@@ -18,7 +18,7 @@ public class StreamingParser: HTTPResponseWriter {
     let webapp : WebApp
     
     /// Time to leave socket open waiting for next request to start
-    static let keepAliveTimeout: TimeInterval = 5
+    public static let keepAliveTimeout: TimeInterval = 5
     
     /// Flag to track if the client wants to send multiple requests on the same TCP connection
     var clientRequestedKeepAlive = false
@@ -60,7 +60,7 @@ public class StreamingParser: HTTPResponseWriter {
     
     //Note: we want this to be strong so it holds onto the connector until it's explicitly cleared
     /// Protocol that we use to send data (and status info) back to the Network layer
-    var parserConnector: ParserConnecting?
+    public var parserConnector: ParserConnecting?
     
     var lastCallBack = CallbackRecord.idle
     var lastHeaderName: String?
@@ -69,7 +69,9 @@ public class StreamingParser: HTTPResponseWriter {
     var parsedHTTPVersion: HTTPVersion?
     var parsedURL: String?
 
-
+    /// Is the currently parsed request an upgrade request?
+    public private(set) var upgradeRequested = false
+    
     /// Class that wraps the CHTTPParser and calls the `WebApp` to get the response
     ///
     /// - Parameter webapp: function that is used to create the response
@@ -186,9 +188,10 @@ public class StreamingParser: HTTPResponseWriter {
             self.parsedHTTPVersion = (Int(self.httpParser.http_major), Int(self.httpParser.http_minor))
             
             self.parserBuffer=nil
-            let request = HTTPRequest(method: self.parsedHTTPMethod!, target:self.parsedURL!, httpVersion: self.parsedHTTPVersion!, headers: self.parsedHeaders)
             
-            self.httpBodyProcessingCallback = self.webapp(request, self)
+            if !upgradeRequested {
+                self.httpBodyProcessingCallback = self.webapp(self.createRequest(), self)
+            }
         case .urlReceived:
             if let parserBuffer = self.parserBuffer {
                 //Under heaptrack, this may appear to leak via _CFGetTSDCreateIfNeeded, 
@@ -236,6 +239,7 @@ public class StreamingParser: HTTPResponseWriter {
         //This needs to be set here and not messageCompleted if it's going to work here
         self.clientRequestedKeepAlive = (http_should_keep_alive(&httpParser) == 1)
         self.keepAliveUntil = Date(timeIntervalSinceNow: StreamingParser.keepAliveTimeout).timeIntervalSinceReferenceDate
+        upgradeRequested = get_upgrade_value(&self.httpParser) == 1
         return 0
     }
     
@@ -297,6 +301,11 @@ public class StreamingParser: HTTPResponseWriter {
     
     var headersWritten = false
     var isChunked = false
+    
+    /// Create a `HTTPRequest` struct from the parsed information 
+    public func createRequest() -> HTTPRequest {
+        return HTTPRequest(method: parsedHTTPMethod!, target: parsedURL!, httpVersion: parsedHTTPVersion!, headers: parsedHeaders)
+    }
     
     public func writeContinue(headers: HTTPHeaders?) /* to send an HTTP `100 Continue` */ {
         var status = "HTTP/1.1 \(HTTPResponseStatus.continue.code) \(HTTPResponseStatus.continue.reasonPhrase)\r\n"
@@ -417,6 +426,7 @@ public class StreamingParser: HTTPResponseWriter {
         self.lastCallBack = .idle
         self.headersWritten = false
         self.httpBodyProcessingCallback = nil
+        self.upgradeRequested = false
         
         let closeAfter = {
             if self.clientRequestedKeepAlive {
@@ -446,7 +456,7 @@ public class StreamingParser: HTTPResponseWriter {
 }
 
 /// Protocol implemented by the thing that sits in between us and the network layer
-protocol ParserConnecting: class {
+public protocol ParserConnecting: class {
     func queueSocketWrite(_ from: Data) -> Void
     func closeWriter() -> Void
     func responseBeginning() -> Void
