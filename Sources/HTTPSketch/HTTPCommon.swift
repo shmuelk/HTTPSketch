@@ -27,7 +27,8 @@ public struct HTTPHeaders {
             return storage[key.lowercased()] ?? []
         }
         mutating set {
-            original = original.filter { $0.0 != key }
+            original = original.filter { $0.0 != key.lowercased() }
+            storage[key.lowercased()]=nil
             for val in newValue {
                 self.append(newHeader: (key, val))
             }
@@ -40,7 +41,6 @@ public struct HTTPHeaders {
     
     public mutating func append(newHeader: (String, String)) {
         original.append(newHeader)
-        storage = [String:[String]]()
         let key = newHeader.0.lowercased()
         let val = newHeader.1
         
