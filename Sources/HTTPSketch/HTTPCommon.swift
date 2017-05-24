@@ -26,6 +26,12 @@ public struct HTTPHeaders {
         get {
             return storage[key.lowercased()] ?? []
         }
+        mutating set {
+            original = original.filter { $0.0 != key }
+            for val in newValue {
+                self.append(newHeader: (key, val))
+            }
+        }
     }
     
     func makeIterator() -> IndexingIterator<Array<(String, String)>> {
