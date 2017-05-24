@@ -44,9 +44,13 @@ public class StreamingParser: HTTPResponseWriter {
         }
     }
 
-    //FIXME: we should actually enforce the number of requests
-    /// Theoretical limit of how many open requests we can have. Currently unenforced
+    /// Theoretical limit of how many open requests we can have. Used in Keep-Alive Header
     let maxRequests = 100
+    
+    /// Optional delegate that can tell us how many connections are in-flight so we can set the Keep-Alive header
+    ///  to the correct number of available connections. If not present, the client will not be limited in number of 
+    ///  connections that can be made simultaneously
+    public weak var connectionCounter: CurrentConnectionCounting?
 
     /// Holds the bytes that come from the CHTTPParser until we have enough of them to do something with it
     var parserBuffer: Data?
@@ -75,8 +79,9 @@ public class StreamingParser: HTTPResponseWriter {
     /// Class that wraps the CHTTPParser and calls the `WebApp` to get the response
     ///
     /// - Parameter webapp: function that is used to create the response
-    public init(webapp: @escaping WebApp) {
+    public init(webapp: @escaping WebApp, connectionCounter: CurrentConnectionCounting? = nil) {
         self.webapp = webapp
+        self.connectionCounter = connectionCounter
         
         //Set up all the callbacks for the CHTTPParser library
         httpParserSettings.on_message_begin = {
@@ -343,13 +348,15 @@ public class StreamingParser: HTTPResponseWriter {
             headers += "\(key): \(value)\r\n"
         }
         
-            if  clientRequestedKeepAlive {
-                headers.append("Connection: Keep-Alive\r\n")
-                headers.append("Keep-Alive: timeout=\(Int(StreamingParser.keepAliveTimeout)), max=\(maxRequests)\r\n")
-            }
-            else {
-                headers.append("Connection: Close\r\n")
-            }
+        let availableConnections = maxRequests - (self.connectionCounter?.connectionCount ?? 0)
+        
+        if  clientRequestedKeepAlive && (availableConnections > 0) {
+            headers.append("Connection: Keep-Alive\r\n")
+            headers.append("Keep-Alive: timeout=\(Int(StreamingParser.keepAliveTimeout)), max=\(availableConnections)\r\n")
+        }
+        else {
+            headers.append("Connection: Close\r\n")
+        }
         headers.append("\r\n")
         
         // TODO use requested encoding if specified
@@ -461,4 +468,10 @@ public protocol ParserConnecting: class {
     func closeWriter() -> Void
     func responseBeginning() -> Void
     func responseComplete() -> Void
+}
+
+/// Delegate that can tell us how many connections are in-flight so we can set the Keep-Alive header
+///  to the correct number of available connections
+public protocol CurrentConnectionCounting: class {
+    var connectionCount: Int { get }
 }

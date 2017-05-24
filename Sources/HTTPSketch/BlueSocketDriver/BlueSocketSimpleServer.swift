@@ -21,7 +21,7 @@ import Socket
 // MARK: HTTPServer
 
 /// An HTTP server that listens for connections on a socket.
-public class BlueSocketSimpleServer {
+public class BlueSocketSimpleServer : CurrentConnectionCounting {
     
     
     /// Socket to listen on for connections
@@ -32,7 +32,6 @@ public class BlueSocketSimpleServer {
     
     // Timer that cleans up idle sockets on expire
     private let pruneSocketTimer: DispatchSourceTimer
-    
     
     /// The port we're listening on. Used primarily to query a randomly assigned port during XCTests
     public var port: Int {
@@ -81,7 +80,7 @@ public class BlueSocketSimpleServer {
             repeat {
                 do {
                     let clientSocket = try self.serverSocket.acceptClientConnection()
-                    let streamingParser = StreamingParser(webapp: webapp)
+                    let streamingParser = StreamingParser(webapp: webapp, connectionCounter: self)
                     let readQueue = readQueues[listenerCount % queueMax]
                     let writeQueue = writeQueues[listenerCount % queueMax]
                     let listener = BlueSocketConnectionListener(socket:clientSocket, parser: streamingParser, readQueue:readQueue, writeQueue: writeQueue)
@@ -108,7 +107,7 @@ public class BlueSocketSimpleServer {
     
     
     /// Count the connections - can be used in XCTests
-    internal var connectionCount: Int {
+    public var connectionCount: Int {
         return connectionListenerList.count
     }
     

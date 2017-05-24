@@ -24,19 +24,7 @@ public struct HTTPHeaders {
     
     public subscript(key: String) -> [String] {
         get {
-            return storage[key] ?? []
-        }
-        set (value) {
-            original.append((key, value.first!))
-            storage = [String:[String]]()
-            makeIterator().forEach { (element: (String, String)) in
-                let key = element.0.lowercased()
-                let val = element.1
-                
-                var existing = storage[key] ?? []
-                existing.append(val)
-                storage[key] = existing
-            }
+            return storage[key.lowercased()] ?? []
         }
     }
     
@@ -44,18 +32,15 @@ public struct HTTPHeaders {
         return original.makeIterator()
     }
     
-    //FIXME: Clean this up - this should be a lot more efficient
     public mutating func append(newHeader: (String, String)) {
         original.append(newHeader)
         storage = [String:[String]]()
-        makeIterator().forEach { (element: (String, String)) in
-            let key = element.0.lowercased()
-            let val = element.1
-            
-            var existing = storage[key] ?? []
-            existing.append(val)
-            storage[key] = existing
-        }
+        let key = newHeader.0.lowercased()
+        let val = newHeader.1
+        
+        var existing = storage[key] ?? []
+        existing.append(val)
+        storage[key] = existing
     }
 
     
