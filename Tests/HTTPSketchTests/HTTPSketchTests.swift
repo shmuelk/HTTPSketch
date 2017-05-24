@@ -70,8 +70,14 @@ class HTTPSketchTests: XCTestCase {
         let testHeaderValueArray4Remainder = testHeaderValueArray4.dropFirst()
         XCTAssertEqual("Test Value 4b",testHeaderValueArray4Remainder.first ?? "Not Found")
 
-
-
+    }
+    
+    func testResponseCodes() {
+        let okay = HTTPResponseStatus.ok
+        XCTAssertEqual(200,okay.code)
+        XCTAssertEqual("ok",okay.reasonPhrase)
+        XCTAssertEqual("CONTINUE",HTTPResponseStatus.continue.reasonPhrase)
+        XCTAssertEqual(HTTPResponseStatus.notFound, HTTPResponseStatus.from(code: 404))
     }
     
     func testSimpleHello() {
@@ -344,6 +350,7 @@ class HTTPSketchTests: XCTestCase {
         ("testHeaders", testHeaders),
         ("testSimpleHello", testSimpleHello),
         ("testResponseOK", testResponseOK),
+        ("testResponseCodes", testResponseCodes),
         ("testHelloEndToEnd", testHelloEndToEnd),
         ("testSimpleHelloEndToEnd", testSimpleHelloEndToEnd),
         ("testRequestEchoEndToEnd", testRequestEchoEndToEnd),
