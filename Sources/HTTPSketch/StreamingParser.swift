@@ -464,14 +464,23 @@ public class StreamingParser: HTTPResponseWriter {
 
 /// Protocol implemented by the thing that sits in between us and the network layer
 public protocol ParserConnecting: class {
+    
+    /// Send data to the network do be written to the client
     func queueSocketWrite(_ from: Data) -> Void
-    func closeWriter() -> Void
+    
+    /// Let the network know that a response has started to avoid closing a connection during a slow write
     func responseBeginning() -> Void
+    
+    /// Let the network know that a response is complete, so it can be closed after timeout
     func responseComplete() -> Void
+    
+    /// Used to let the network know we're ready to close the connection
+    func closeWriter() -> Void
 }
 
 /// Delegate that can tell us how many connections are in-flight so we can set the Keep-Alive header
 ///  to the correct number of available connections
 public protocol CurrentConnectionCounting: class {
+    /// Current number of active connections
     var connectionCount: Int { get }
 }

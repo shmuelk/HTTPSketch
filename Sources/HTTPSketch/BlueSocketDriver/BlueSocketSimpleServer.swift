@@ -20,7 +20,7 @@ import Socket
 
 // MARK: HTTPServer
 
-/// An HTTP server that listens for connections on a socket.
+/// An HTTP server that listens for connections on a TCP socket and spawns Listeners to handle them.
 public class BlueSocketSimpleServer : CurrentConnectionCounting {
     
     

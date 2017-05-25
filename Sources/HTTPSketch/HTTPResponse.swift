@@ -10,6 +10,7 @@
 import Foundation
 import Dispatch
 
+/// HTTP Response NOT INCLUDING THE BODY
 public struct HTTPResponse {
     public var httpVersion : HTTPVersion
     public var status: HTTPResponseStatus
@@ -27,6 +28,7 @@ public struct HTTPResponse {
     }
 }
 
+/// Object that code writes the response and response body to. 
 public protocol HTTPResponseWriter : class {
     func writeContinue(headers: HTTPHeaders?) /* to send an HTTP `100 Continue` */
     
@@ -50,6 +52,7 @@ public enum HTTPTransferEncoding {
     case chunked
 }
 
+/// Response status (200 ok, 404 not found, etc)
 public enum HTTPResponseStatus: UInt, RawRepresentable {
     /* The original spec used custom if you want to use a non-standard response code or
      have it available in a (UInt, String) pair from a higher-level web framework. 

@@ -6,8 +6,14 @@
 //
 //
 
-import Foundation
+/*
+ 
+ This file isn't part of the API per se, but it's the easiest way to get started- just supply a completion block.
+ It's also really handy for building up `WebApp`s to use when writing tests.
+ 
+ */
 
+import Foundation
 
 /// Simple block-based wrapper to create a `WebApp`. Normally used during XCTests
 public class SimpleResponseCreator: WebAppContaining {

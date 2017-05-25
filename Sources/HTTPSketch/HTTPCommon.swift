@@ -9,14 +9,19 @@
 
 import Foundation
 
+/// Version number of the HTTP Protocol
 public typealias HTTPVersion = (Int, Int)
 
+/// Takes in a Request and an object to write to, and returns a function that handles reading the request body
 public typealias WebApp = (HTTPRequest, HTTPResponseWriter) -> HTTPBodyProcessing
 
+/// Class protocol containing the WebApp func. Using a class protocol to allow weak references for ARC
 public protocol WebAppContaining: class {
+    /// WebApp method
     func serve(req: HTTPRequest, res: HTTPResponseWriter ) -> HTTPBodyProcessing
 }
 
+/// Headers structure.
 public struct HTTPHeaders {
     var storage: [String:[String]]     /* lower cased keys */
     var original: [(String, String)]   /* original casing */
@@ -49,7 +54,7 @@ public struct HTTPHeaders {
         storage[key] = existing
     }
 
-    
+    /// Create Header structure from an array of string pairs
     public init(_ headers: [(String, String)] = []) {
         original = headers
         description=""
