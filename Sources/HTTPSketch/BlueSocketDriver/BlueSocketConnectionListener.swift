@@ -105,18 +105,6 @@ public class BlueSocketConnectionListener: ParserConnecting {
             return
         }
         self.readerSource?.cancel()
-        self.socket?.close()
-        
-        //In a perfect world, we wouldn't have to clean this all up explicitly,
-        // but KDE/heaptrack informs us we're in far from a perfect world
-        self.readerSource?.setEventHandler(handler: nil)
-        self.readerSource?.setCancelHandler(handler: nil)
-        self.readerSource = nil
-        self.socket = nil
-        self.parser?.parserConnector = nil //allows for memory to be reclaimed
-        self.parser = nil
-        self.socketReaderQueue = nil
-        self.socketWriterQueue = nil
     }
     
     
@@ -195,22 +183,31 @@ public class BlueSocketConnectionListener: ParserConnecting {
                     } while length > 0
                 } catch {
                     print("ReaderSource Event Error: \(error)")
-                    self?.readerSource?.cancel()
                     self?.errorOccurred = true
                     self?.close()
                 }
                 if (length == 0) {
-                    self?.readerSource?.cancel()
+                    self?.close()
                 }
                 if (length < 0) {
                     self?.errorOccurred = true
-                    self?.readerSource?.cancel()
                     self?.close()
                 }
             }
             
             tempReaderSource.setCancelHandler { [ weak self] in
-                self?.close() //close if we can
+                self?.socket?.close()
+                
+                //In a perfect world, we wouldn't have to clean this all up explicitly,
+                // but KDE/heaptrack informs us we're in far from a perfect world
+                self?.readerSource?.setEventHandler(handler: nil)
+                self?.readerSource?.setCancelHandler(handler: nil)
+                self?.readerSource = nil
+                self?.socket = nil
+                self?.parser?.parserConnector = nil //allows for memory to be reclaimed
+                self?.parser = nil
+                self?.socketReaderQueue = nil
+                self?.socketWriterQueue = nil
             }
             
             self.readerSource = tempReaderSource
